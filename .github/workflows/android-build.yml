@@ -19,12 +19,12 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # This downloads, sets up, and injects Gradle 8.4 globally onto the runner path
+      # This configures the environment and generates the missing wrapper execution files
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.4' 
+          gradle-version: '8.4'
 
-      # Now we call the globally exposed executable with debugging flags active
+      # We now use the local wrapper execution syntax safely
       - name: Build debug APK
-        run: gradle assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --stacktrace
