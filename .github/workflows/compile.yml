@@ -12,22 +12,27 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # FIX: Generates a manifest with the tools namespace and merge rule markers to resolve conflicts
+      - name: Normalize Project Resource Layout Structure
+        run: |
+          mkdir -p app/src/main/res/layout
+          mkdir -p app/src/main/res/values
+          find . -type f -name "*activity_main.xml" -exec mv {} app/src/main/res/layout/activity_main.xml \;
+          find . -type f -name "*strings.xml" -exec mv {} app/src/main/res/values/strings.xml \;
+          find . -type f -name "*themes.xml" -exec mv {} app/src/main/res/values/themes.xml \;
+
+      # FIX: Cleaned up the broken double-redirect typo block line entirely
       - name: Generate Clean Android Manifest
         run: |
           mkdir -p app/src/main
-          printf '<manifest xmlns:android="http://schemas.android.com/apk/res/android"\n' > app/src/main/AndroidManifest.xml
-          printf '    xmlns:tools="http://github.com">\n' >> app/src/main/AndroidManifest.xml
-          printf '\n' >> app/src/main/AndroidManifest.xml
+          printf '<manifest xmlns:android="http://android.com"\n' > app/src/main/AndroidManifest.xml
+          printf '    xmlns:tools="http://android.com">\n' >> app/src/main/AndroidManifest.xml
           printf '    <uses-permission android:name="android.permission.INTERNET" tools:node="merge" />\n' >> app/src/main/AndroidManifest.xml
-          printf '\n' >> app/src/main/AndroidManifest.xml
           printf '    <application\n' >> app/src/main/AndroidManifest.xml
           printf '        android:allowBackup="true"\n' >> app/src/main/AndroidManifest.xml
           printf '        android:supportsRtl="true"\n' >> app/src/main/AndroidManifest.xml
           printf '        android:label="@string/app_name"\n' >> app/src/main/AndroidManifest.xml
           printf '        android:theme="@style/Theme.App"\n' >> app/src/main/AndroidManifest.xml
           printf '        tools:node="merge">\n' >> app/src/main/AndroidManifest.xml
-          printf '\n' >> app/src/main/AndroidManifest.xml
           printf '        <activity\n' >> app/src/main/AndroidManifest.xml
           printf '            android:name=".MainActivity"\n' >> app/src/main/AndroidManifest.xml
           printf '            android:exported="true"\n' >> app/src/main/AndroidManifest.xml
@@ -55,3 +60,9 @@ jobs:
 
       - name: Build Code Base
         run: gradle assembleDebug -Pandroid.useAndroidX=true --no-daemon --no-build-cache --stacktrace
+
+      - name: Save APK Result
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
