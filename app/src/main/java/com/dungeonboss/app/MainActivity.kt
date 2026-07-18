@@ -12,6 +12,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
+import org.json.JSONObject
 import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
@@ -63,7 +64,6 @@ class MainActivity : AppCompatActivity() {
             executor.execute {
                 try {
                     val mediaType = "application/json; charset=utf-8".toMediaType()
-                    // Forwarding the raw Gemini JSON string payload unmodified 
                     val body = RequestBody.create(mediaType, payloadJson)
                     
                     val req = Request.Builder()
@@ -75,7 +75,6 @@ class MainActivity : AppCompatActivity() {
                     val resp = httpClient.newCall(req).execute()
                     val respStr = resp.body?.string() ?: "{}"
                     
-                    // Hand back the raw Gemini API response directly to the javascript parser
                     postCallback(callbackId, respStr)
                 } catch (e: Exception) {
                     val errMsg = e.message ?: "unknown"
@@ -86,13 +85,14 @@ class MainActivity : AppCompatActivity() {
         }
 
         private fun postCallback(callbackId: String, response: String) {
-            // Using standard string interpolation to construct clean JS invocation blocks safely
-            val js = "window.handleNativeResponse('$callbackId', `$response`);"
+            val quotedId = JSONObject.quote(callbackId)
+            val quotedResp = JSONObject.quote(response)
+            val js = "window.handleNativeResponse($quotedId, $quotedResp);"
             runOnUiThread {
                 try {
                     webView.evaluateJavascript(js, null)
                 } catch (t: Throwable) {
-                    webView.loadUrl("javascript:$js")
+                    webView.loadUrl("javascript:" + js)
                 }
             }
         }
