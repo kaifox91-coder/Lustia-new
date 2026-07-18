@@ -104,6 +104,76 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         executor.shutdownNow()
     }
+}
+        webView.settings.javaScriptEnabled = true
+        webView.webChromeClient = WebChromeClient()
+        webView.addJavascriptInterface(AndroidBridge(this), "AndroidBridge")
+        webView.loadUrl("file:///android_asset/index.html")
+    }
+
+    inner class AndroidBridge(private val ctx: Context) {
+
+        @JavascriptInterface
+        fun setApiKey(key: String) {
+            prefs.edit().putString(KEY_API, key).apply()
+        }
+
+        @JavascriptInterface
+        fun getApiKey(): String? {
+            return prefs.getString(KEY_API, null)
+        }
+
+        /**
+         * Called from JS: payloadJson (string), callbackId (string)
+         * The native side will perform the OpenAI request and call back:
+         * window.handleNativeResponse(callbackId, JSON.stringify(response))
+         */
+        @JavascriptInterface
+        fun openAIProxy(payloadJson: String, callbackId: String) {
+            val apiKey = prefs.getString(KEY_API, null)
+            if (apiKey.isNullOrBlank()) {
+                postCallback(callbackId, JSONObject().put("error", "no_api_key").toString())
+                return
+            }
+            executor.execute {
+                try {
+                    val mediaType = "application/json; charset=utf-8".toMediaType()
+                    val body = RequestBody.create(mediaType, payloadJson)
+                    val req = Request.Builder()
+                        .url("https://api.openai.com/v1/chat/completions")
+                        .addHeader("Authorization", "Bearer $apiKey")
+                        .addHeader("Content-Type", "application/json")
+                        .post(body)
+                        .build()
+                    val resp = httpClient.newCall(req).execute()
+                    val respStr = resp.body?.string() ?: "{}"
+                    postCallback(callbackId, respStr)
+                } catch (e: Exception) {
+                    val err = JSONObject().put("error", e.message ?: "unknown").toString()
+                    postCallback(callbackId, err)
+                }
+            }
+        }
+
+        private fun postCallback(callbackId: String, response: String) {
+            val quotedId = JSONObject.quote(callbackId)
+            val quotedResp = JSONObject.quote(response)
+            val js = "window.handleNativeResponse($quotedId, $quotedResp);"
+            runOnUiThread {
+                try {
+                    webView.evaluateJavascript(js, null)
+                } catch (t: Throwable) {
+                    // fallback: loadUrl
+                    webView.loadUrl("javascript:$js")
+                }
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        executor.shutdownNow()
+    }
 }        webView = findViewById(R.id.webView)
 
         webView.settings.javaScriptEnabled = true
