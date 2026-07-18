@@ -8,7 +8,7 @@ jobs:
   build:
     name: Build debug APK
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -19,12 +19,18 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # This configures the environment and generates the missing wrapper execution files
+      # This pulls down version 8.4 and makes the global "gradle" command point to it
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.4'
 
-      # We now use the local wrapper execution syntax safely
+      # We drop the "./" and "w" so it runs the downloaded global framework tool
       - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: gradle assembleDebug --stacktrace
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
