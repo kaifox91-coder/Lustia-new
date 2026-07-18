@@ -9,7 +9,7 @@ jobs:
     name: Build debug APK
     runs-on: ubuntu-latest
 
-    steps:
+        steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -19,23 +19,12 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v2
-        with:
-          api-level: 34
-          build-tools: '34.0.0'
-          accept-android-sdk-licenses: true
+      # Note: Android SDK is pre-installed on ubuntu-latest runners. 
+      # You can usually delete the setup-android step entirely to speed up your build.
 
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-
-      - name: Build debug APK
-        uses: gradle/gradle-build-action@v2
+      # THIS STEP REPLACES BOTH 'Cache Gradle' AND 'Build debug APK'
+      - name: Setup and Run Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.4'
           arguments: assembleDebug
