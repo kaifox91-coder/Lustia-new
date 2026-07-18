@@ -36,7 +36,9 @@ class MainActivity : AppCompatActivity() {
         webView = findViewById(R.id.webView)
 
         webView.settings.javaScriptEnabled = true
+        webView.settings.domStorageEnabled = true
         webView.webChromeClient = WebChromeClient()
+        
         webView.addJavascriptInterface(AndroidBridge(this), "AndroidBridge")
         webView.loadUrl("file:///android_asset/index.html")
     }
@@ -69,6 +71,7 @@ class MainActivity : AppCompatActivity() {
                     val req = Request.Builder()
                         .url("https://googleapis.com")
                         .addHeader("Content-Type", "application/json")
+                        .addHeader("x-goog-api-key", apiKey)
                         .post(body)
                         .build()
                         
