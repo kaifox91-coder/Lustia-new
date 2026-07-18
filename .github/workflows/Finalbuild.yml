@@ -12,18 +12,24 @@ jobs:
       - name: Checkout Code Base
         uses: actions/checkout@v4
 
+      # WORKAROUND FIX: Clears out worktree extensions to stop silent agent serialization freezes
+      - name: Purge Corrupted Worktree Configurations
+        run: |
+          git config --unset extensions.worktreeConfig || true
+          git worktree prune || true
+
+      # Restores a clean Android Manifest file natively
+      - name: Overwrite with Clean Manifest
+        run: |
+          mkdir -p app/src/main
+          echo "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPG1hbmlmZXN0IHhtbG5zOmFuZHJvaWQ9Imh0dHA6Ly9zY2hlbWFzLmFuZHJvaWQuY29tL2Fway9yZXMvYW5kcm9pZCIKICAgIHhtbG5zOnRvb2xzPSJodHRwOi8vc2NoZW1hcy5hbmRyb2lkLmNvbS90b29scyI+CiAgICA8dXNlcy1wZXJtaXNzaW9uIGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5wZXJtaXNzaW9uLklOVEVSTkVUIiB0b29sczpub2RlPSJtZXJnZSIgLz4KICAgIDxhcHBsaWNhdGlvbgogICAgICAgIGFuZHJvaWQ6YWxsb3dCYWNrdXA9InRydWUiCiAgICAgICAgYW5kcm9pZDpzdXBwb3J0c1J0bD0idHJ1ZSIKICAgICAgICBhbmRyb2lkOmxhYmVsPSJAc3RyaW5nL2FwcF9uYW1lIgogICAgICAgIGFuZHJvaWQ6dGhlbWU9IkBzdHlsZS9UaGVtZS5BcHAiCiAgICAgICAgYW5kcm9pZDp1c2VzQ2xlYXJ0ZXh0VHJhZmZpYz0idHJ1ZSIKICAgICAgICB0b29sczpub2RlPSJtZXJnZSI+CiAgICAgICAgPGFjdGl2aXR5CiAgICAgICAgICAgIGFuZHJvaWQ6bmFtZT0iLk1haW5BY3Rpdml0eSIKICAgICAgICAgICAgYW5kcm9pZDpleHBvcnRlZD0idHJ1ZSIKICAgICAgICAgICAgYW5kcm9pZDp0aGVtZT0iQHN0eWxlL1RoZW1lLkFwcCIKICAgICAgICAgICAgdG9vbHM6bm9kZT0ibWVyZ2UiPgogICAgICAgICAgICA8aW50ZW50LWZpbHRlcj4KICAgICAgICAgICAgICAgIDxhY3Rpb24gYW5kcm9pZDpuYW1lPSJhbmRyb2lkLmludGVudC5hY3Rpb24uTUFJTiIgLz4KICAgICAgICAgICAgICAgIDxjYXRlZ29yeSBhbmRyb2lkOm5hbWU9ImFuZHJvaWQuaW50ZW50LmNhdGVnb3J5LkxBVU5DSEVSIiAvPgogICAgICAgICAgICA8L2ludGVudC1maWx0ZXI+CiAgICAgICAgPC9hY3Rpdml0eT4KICAgIDwvYXBwbGljYXRpb24+CjwvbWFuaWZlc3Q+" | base64 --decode > app/src/main/AndroidManifest.xml
+
       - name: Normalize Project Resource Layout Structure
         run: |
           mkdir -p app/src/main/res/layout app/src/main/res/values
           find . -type f -name "*activity_main.xml" -not -path "*/res/layout/*" -exec mv {} app/src/main/res/layout/activity_main.xml \; 2>/dev/null || true
           find . -type f -name "*strings.xml" -not -path "*/res/values/*" -exec mv {} app/src/main/res/values/strings.xml \; 2>/dev/null || true
           find . -type f -name "*themes.xml" -not -path "*/res/values/*" -exec mv {} app/src/main/res/values/themes.xml \; 2>/dev/null || true
-
-      # GUARANTEED MANIFEST MERGER FIX: Generates a raw manifest directly on the cloud filesystem, skipping mobile quote issues
-      - name: Overwrite with Clean Manifest
-        run: |
-          mkdir -p app/src/main
-          echo "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPG1hbmlmZXN0IHhtbG5zOmFuZHJvaWQ9Imh0dHA6Ly9zY2hlbWFzLmFuZHJvaWQuY29tL2Fway9yZXMvYW5kcm9pZCIKICAgIHhtbG5zOnRvb2xzPSJodHRwOi8vc2NoZW1hcy5hbmRyb2lkLmNvbS90b29scyI+CiAgICA8dXNlcy1wZXJtaXNzaW9uIGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5wZXJtaXNzaW9uLklOVEVSTkVUIiB0b29sczpub2RlPSJtZXJnZSIgLz4KICAgIDxhcHBsaWNhdGlvbgogICAgICAgIGFuZHJvaWQ6YWxsb3dCYWNrdXA9InRydWUiCiAgICAgICAgYW5kcm9pZDpzdXBwb3J0c1J0bD0idHJ1ZSIKICAgICAgICBhbmRyb2lkOmxhYmVsPSJAc3RyaW5nL2FwcF9uYW1lIgogICAgICAgIGFuZHJvaWQ6dGhlbWU9IkBzdHlsZS9UaGVtZS5BcHAiCiAgICAgICAgYW5kcm9pZDp1c2VzQ2xlYXJ0ZXh0VHJhZmZpYz0idHJ1ZSIKICAgICAgICB0b29sczpub2RlPSJtZXJnZSI+CiAgICAgICAgPGFjdGl2aXR5CiAgICAgICAgICAgIGFuZHJvaWQ6bmFtZT0iLk1haW5BY3Rpdml0eSIKICAgICAgICAgICAgYW5kcm9pZDpleHBvcnRlZD0idHJ1ZSIKICAgICAgICAgICAgYW5kcm9pZDp0aGVtZT0iQHN0eWxlL1RoZW1lLkFwcCIKICAgICAgICAgICAgdG9vbHM6bm9kZT0ibWVyZ2UiPgogICAgICAgICAgICA8aW50ZW50LWZpbHRlcj4KICAgICAgICAgICAgICAgIDxhY3Rpb24gYW5kcm9pZDpuYW1lPSJhbmRyb2lkLmludGVudC5hY3Rpb24uTUFJTiIgLz4KICAgICAgICAgICAgICAgIDxjYXRlZ29yeSBhbmRyb2lkOm5hbWU9ImFuZHJvaWQuaW50ZW50LmNhdGVnb3J5LkxBVU5DSEVSIiAvPgogICAgICAgICAgICA8L2ludGVudC1maWx0ZXI+CiAgICAgICAgPC9hY3Rpdml0eT4KICAgIDwvYXBwbGljYXRpb24+CjwvbWFuaWZlc3Q+" | base64 --decode > app/src/main/AndroidManifest.xml
 
       - name: Set up Java Setup Environment
         uses: actions/setup-java@v4
