@@ -23,5 +23,6 @@ jobs:
         with:
           gradle-version: 8.2
 
+      # FIX: Injects the AndroidX flag directly into the command using -P to skip properties file forks
       - name: Build Code Base
-        run: gradle assembleDebug --stacktrace
+        run: gradle assembleDebug -Pandroid.useAndroidX=true --no-daemon --stacktrace
