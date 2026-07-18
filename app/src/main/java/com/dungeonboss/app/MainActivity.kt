@@ -25,7 +25,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val PREFS_NAME = "dungeon_prefs"
-        private const val KEY_API = "gemini_api_key"  // renamed for clarity
+        private const val KEY_API = "gemini_api_key"
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -35,6 +35,156 @@ class MainActivity : AppCompatActivity() {
 
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         webView = findViewById(R.id.webView)
+
+        webView.settings.javaScriptEnabled = true
+        webView.webChromeClient = WebChromeClient()
+        webView.addJavascriptInterface(AndroidBridge(this), "AndroidBridge")
+        webView.loadUrl("file:///android_asset/index.html")
+    }
+
+    inner class AndroidBridge(private val ctx: Context) {
+
+        @JavascriptInterface
+        fun setApiKey(key: String) {
+            prefs.edit().putString(KEY_API, key).apply()
+        }
+
+        @JavascriptInterface
+        fun getApiKey(): String? {
+            return prefs.getString(KEY_API, null)
+        }
+
+        /**
+         * Called from JS: payloadJson (string), callbackId (string)
+         * Native converts OpenAI-style payload -> Gemini request,
+         * calls Gemini, converts response back to OpenAI shape,
+         * and calls window.handleNativeResponse(callbackId, response).
+         */
+        @JavascriptInterface
+        fun openAIProxy(payloadJson: String, callbackId: String) {
+            val apiKey = prefs.getString(KEY_API, null)
+            if (apiKey.isNullOrBlank()) {
+                postCallback(callbackId, JSONObject().put("error", "no_api_key").toString())
+                return
+            }
+            executor.execute {
+                try {
+                    val openAiPayload = JSONObject(payloadJson)
+                    val geminiRequestBody = convertOpenAiToGemini(openAiPayload)
+
+                    val mediaType = "application/json; charset=utf-8".toMediaType()
+                    val body = RequestBody.create(mediaType, geminiRequestBody.toString())
+
+                    val request = Request.Builder()
+                        .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey")
+                        .addHeader("Content-Type", "application/json")
+                        .post(body)
+                        .build()
+
+                    val response = httpClient.newCall(request).execute()
+                    val responseBody = response.body?.string() ?: "{}"
+
+                    val openAiResponse = convertGeminiToOpenAi(JSONObject(responseBody))
+
+                    postCallback(callbackId, openAiResponse.toString())
+                } catch (e: Exception) {
+                    val err = JSONObject().put("error", e.message ?: "unknown").toString()
+                    postCallback(callbackId, err)
+                }
+            }
+        }
+
+        private fun convertOpenAiToGemini(openAi: JSONObject): JSONObject {
+            val contents = JSONArray()
+            val systemParts = JSONArray()
+
+            val messages = openAi.optJSONArray("messages") ?: JSONArray()
+            for (i in 0 until messages.length()) {
+                val msg = messages.getJSONObject(i)
+                val role = msg.optString("role", "user")
+                val content = msg.optString("content", "")
+
+                if (role == "system") {
+                    systemParts.put(JSONObject().put("text", content))
+                } else {
+                    val geminiRole = if (role == "assistant") "model" else "user"
+                    val part = JSONObject().put("text", content)
+                    val msgObj = JSONObject().put("role", geminiRole).put("parts", JSONArray().put(part))
+                    contents.put(msgObj)
+                }
+            }
+
+            val gemini = JSONObject()
+            gemini.put("contents", contents)
+            if (systemParts.length() > 0) {
+                gemini.put("system_instruction", JSONObject().put("parts", systemParts))
+            }
+
+            val generationConfig = JSONObject()
+            if (openAi.has("temperature"))
+                generationConfig.put("temperature", openAi.getDouble("temperature"))
+            if (openAi.has("top_p"))
+                generationConfig.put("topP", openAi.getDouble("top_p"))
+            if (openAi.has("max_tokens"))
+                generationConfig.put("maxOutputTokens", openAi.getInt("max_tokens"))
+            if (generationConfig.length() > 0)
+                gemini.put("generationConfig", generationConfig)
+
+            return gemini
+        }
+
+        private fun convertGeminiToOpenAi(geminiResp: JSONObject): JSONObject {
+            val openAiResp = JSONObject()
+            val choices = JSONArray()
+
+            val candidates = geminiResp.optJSONArray("candidates")
+            if (candidates != null && candidates.length() > 0) {
+                val first = candidates.getJSONObject(0)
+                val content = first.optJSONObject("content")
+                if (content != null) {
+                    val parts = content.optJSONArray("parts")
+                    var text = ""
+                    if (parts != null && parts.length() > 0) {
+                        val firstPart = parts.getJSONObject(0)
+                        text = firstPart.optString("text", "")
+                    }
+                    val message = JSONObject().put("role", "assistant").put("content", text)
+                    val choice = JSONObject().put("message", message)
+                    choices.put(choice)
+                }
+            }
+
+            val promptFeedback = geminiResp.optJSONObject("promptFeedback")
+            if (promptFeedback != null) {
+                val blockReason = promptFeedback.optString("blockReason", "")
+                if (blockReason.isNotEmpty()) {
+                    openAiResp.put("error", "Blocked: $blockReason")
+                }
+            }
+
+            openAiResp.put("choices", choices)
+            return openAiResp
+        }
+
+        private fun postCallback(callbackId: String, response: String) {
+            val quotedId = JSONObject.quote(callbackId)
+            val quotedResp = JSONObject.quote(response)
+            val js = "window.handleNativeResponse($quotedId, $quotedResp);"
+            runOnUiThread {
+                try {
+                    webView.evaluateJavascript(js, null)
+                } catch (t: Throwable) {
+                    webView.loadUrl("javascript:$js")
+                }
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        executor.shutdownNow()
+    }
+}        webView = findViewById(R.id.webView)
 
         webView.settings.javaScriptEnabled = true
         webView.webChromeClient = WebChromeClient()
