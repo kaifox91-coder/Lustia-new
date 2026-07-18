@@ -1,5 +1,9 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.dungeonboss.app">
+<manifest xmlns:android="http://android.com">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    
+    <!-- Rest of your manifest code continues exactly the same... -->
+
 
     <uses-permission android:name="android.permission.INTERNET" />
 
