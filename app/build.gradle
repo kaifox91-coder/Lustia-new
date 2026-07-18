@@ -6,6 +6,7 @@ plugins {
 android {
     namespace 'com.dungeonboss.app'
     compileSdk 34
+    buildToolsVersion "34.0.0"
 
     defaultConfig {
         applicationId 'com.dungeonboss.app'
@@ -34,6 +35,9 @@ android {
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.webkit:webkit:1.6.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.11.0'
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.9.10'
+}
     implementation 'com.squareup.okhttp3:okhttp:4.11.0'
     implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.9.10'
 }
