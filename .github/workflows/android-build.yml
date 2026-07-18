@@ -13,8 +13,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          submodules: false
-          persist-credentials: false
 
       - name: Set up Java Development Kit
         uses: actions/setup-java@v4
@@ -22,20 +20,28 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # AUTO-FIX STEP: This creates the missing gradlew files directly in the cloud
-      - name: Generate Missing Wrapper
-        run: gradle wrapper --gradle-version 8.2
-
       - name: Initialize Gradle Environment
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.2'
 
-      - name: Execute Android Compilation
-        run: ./gradlew assembleDebug --stacktrace
+      # FORCE COMPILE STEP: This searches for your gradle files and runs compilation wherever they are found
+      - name: Locate and Execute Android Compilation
+        run: |
+          if [ -f "build.gradle" ]; then
+            echo "Root build file detected. Compiling directly..."
+            gradle assembleDebug --stacktrace
+          else
+            echo "Root build file not found. Searching subdirectories..."
+            cd $(dirname $(find . -name "build.gradle" | head -n 1))
+            echo "Moved into directory: $PWD"
+            gradle assembleDebug --stacktrace
+          fi
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            **/build/outputs/apk/debug/*.apk
