@@ -48,9 +48,9 @@ jobs:
         with:
           gradle-version: 8.2
 
-      # FIX: Hard-throttling workers and tasks to eliminate multi-threaded memory crashes
+      # FIX: Removed the invalid '--parallel=false' CLI flag argument string
       - name: Build Code Base
-        run: gradle assembleDebug --no-daemon --stacktrace --no-watch-fs --max-workers=1 --parallel=false
+        run: gradle assembleDebug --no-daemon --stacktrace --no-watch-fs --max-workers=1
         env:
           GRADLE_OPTS: -Xmx1536m -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=1 -Dorg.gradle.daemon=false
 
