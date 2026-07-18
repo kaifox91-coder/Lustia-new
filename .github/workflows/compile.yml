@@ -12,7 +12,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # FORCE CLEAN GENERATION: This ensures the manifest uses raw, straight quotes that the compiler needs
       - name: Generate Clean Android Manifest
         run: |
           mkdir -p app/src/main
@@ -45,12 +44,8 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 8.2
+          cache-disabled: true # FIX 1: Prevents the action from pulling old, corrupted compiler cache
 
+      # FIX 2: Added --no-build-cache to force the daemon to compile a completely fresh manifest
       - name: Build Code Base
-        run: gradle assembleDebug -Pandroid.useAndroidX=true --no-daemon --stacktrace
-
-      - name: Save APK Result
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+        run: gradle assembleDebug -Pandroid.useAndroidX=true --no-daemon --no-build-cache --stacktrace
