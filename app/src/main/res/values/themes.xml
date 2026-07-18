@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.App" parent="Theme.AppCompat.DayNight.NoActionBar">
-        <item name="colorPrimary">#0f1720</item>
-        <item name="colorPrimaryDark">#0b1220</item>
-        <item name="colorAccent">#2563eb</item>
+    <!-- Base application theme that relies strictly on standard appcompat -->
+    <style name="Theme.App" parent="Theme.AppCompat.Light.NoActionBar">
+        <!-- Core branding colors -->
+        <item name="colorPrimary">#0F1720</item>
+        <item name="colorPrimaryDark">#0B1220</item>
+        <item name="colorAccent">#2563EB</item>
     </style>
 </resources>
