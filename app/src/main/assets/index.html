@@ -64,7 +64,6 @@
       sendPrompt: async function(promptText) {
         const cbId = genId();
         
-        // Pure Gemini Request Structure
         const geminiPayload = {
           contents: [{
             role: "user",
@@ -78,13 +77,11 @@
 
           if (window.AndroidBridge && window.AndroidBridge.openAIProxy) {
             try {
-              // Pass the pure Gemini structure straight down to the native app proxy
               window.AndroidBridge.openAIProxy(payloadString, cbId);
             } catch (e) { 
               reject(e); 
             }
           } else {
-            // Direct browser fallback testing endpoint
             const key = DungeonAPI.getApiKey();
             if (!key) {
               delete callbacks[cbId];
@@ -125,10 +122,14 @@
       try {
         const res = await DungeonAPI.sendPrompt(promptText);
         
-        // Directly extract Gemini text structure fields natively
-        if (res.candidates && res.candidates[0]?.content?.parts[0]?.text) {
+        // FIXED: Safely addresses the 'parts' array layout structure tracking index [0]
+        if (res.candidates && res.candidates[0]?.content?.parts && res.candidates[0].content.parts[0]?.text) {
           document.getElementById('out').textContent = res.candidates[0].content.parts[0].text;
+        } else if (res.error) {
+          // Explicitly catch and render API errors from Google (like quota or restriction errors)
+          document.getElementById('out').textContent = 'API Error: ' + (res.error.message || JSON.stringify(res.error));
         } else {
+          // If structure differs completely, dump raw JSON string data for zero-freeze troubleshooting
           document.getElementById('out').textContent = JSON.stringify(res, null, 2);
         }
       } catch (e) {
