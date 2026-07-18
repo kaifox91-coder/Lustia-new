@@ -14,7 +14,7 @@
     button:disabled { background:#1d4ed8; opacity:0.5; }
     button.secondary { background:#4b5563; }
     pre { white-space:pre-wrap; word-wrap:break-word; color:#93c5fd; font-size:13px; line-height:1.6; margin:0; background:#070a13; padding:12px; border-radius:6px; }
-    #logBox { max-height:150px; overflow-y:auto; font-family:monospace; color:#ef4444; }
+    #logBox { max-height:120px; overflow-y:auto; font-family:monospace; color:#ef4444; }
     label { display:block; font-size:12px; color:#94a3b8; margin-bottom:6px; font-weight:600; text-transform:uppercase; }
   </style>
 </head>
@@ -38,10 +38,10 @@
   </div>
 
   <div class="card" style="border-color: #dc2626;">
-    <h3 style="color:#ef4444;">Diagnostic & Crash Logs</h3>
-    <pre id="logBox">Awaiting action...</pre>
+    <h3 style="color:#ef4444;">Diagnostic logs</h3>
+    <pre id="logBox">System initialized cleanly.</pre>
     <div class="btn-group">
-      <button id="copyLog" class="secondary">Copy Crash Log</button>
+      <button id="copyLog" class="secondary">Copy Log</button>
     </div>
   </div>
 
@@ -52,21 +52,21 @@
     function logDiag(message, isError = false) {
       const logBox = document.getElementById('logBox');
       const timestamp = new Date().toLocaleTimeString();
-      const newLine = `[${timestamp}] ${isError ? '❌ ERROR:' : 'ℹ️ INFO:'} ${message}\n`;
-      if (logBox.textContent === 'Awaiting action...') logBox.textContent = newLine;
+      const newLine = `[${timestamp}] ${isError ? '❌' : 'ℹ️'} ${message}\n`;
+      if (logBox.textContent === 'System initialized cleanly.') logBox.textContent = newLine;
       else logBox.textContent += newLine;
       logBox.scrollTop = logBox.scrollHeight;
     }
 
     window.handleNativeResponse = function(callbackId, payloadString) {
-      logDiag(`Native callback registry triggered for ID: ${callbackId}`);
+      logDiag(`Native callback returned for ID: ${callbackId}`);
       try {
         const cb = callbacks[callbackId];
-        if (!cb) return logDiag("No matching callback listener registry found.", true);
+        if (!cb) return logDiag("No matching registry tracking found.", true);
         delete callbacks[callbackId];
-        cb.resolve(payloadString);
+        cb.resolve(JSON.parse(payloadString));
       } catch (e) {
-        logDiag(`Callback compilation failed: ${e.message}`, true);
+        logDiag(`Parse error: ${e.message}`, true);
       }
     };
 
@@ -74,7 +74,7 @@
       setApiKey: (k) => {
         if (window.AndroidBridge && window.AndroidBridge.setApiKey) {
           window.AndroidBridge.setApiKey(k);
-          logDiag("API Key saved securely to device SharedPreferences.");
+          logDiag("API Key synced to secure storage.");
         } else {
           localStorage.setItem('gemini_key', k);
         }
@@ -87,33 +87,30 @@
       },
       sendPrompt: async function(promptText) {
         const cbId = genId();
-        const geminiPayload = {
-          contents: [{ role: "user", parts: [{ text: promptText }] }]
-        };
-        const payloadString = JSON.stringify(geminiPayload);
+        const payload = { prompt: promptText };
+        logDiag(`Dispatching clean packet ID: ${cbId}`);
 
         return new Promise((resolve, reject) => {
           callbacks[cbId] = { resolve, reject };
-          logDiag(`Packaging pipeline data packet: ${cbId}`);
 
           if (window.AndroidBridge && window.AndroidBridge.openAIProxy) {
-            try {
-              window.AndroidBridge.openAIProxy(payloadString, cbId);
-            } catch (e) {
-              logDiag(`Interface connection drop: ${e.message}`, true);
-              reject(e);
-            }
+            window.AndroidBridge.openAIProxy(JSON.stringify(payload), cbId);
           } else {
-            logDiag("Running outside APK. Sending direct network request...");
+            logDiag("Browser fallback routing...");
             const key = DungeonAPI.getApiKey();
-            if (!key) return reject("Missing API Key entry config.");
+            if (!key) return reject("Missing API Key entry configuration.");
+            
+            const geminiPayload = { contents: [{ role: "user", parts: [{ text: promptText }] }] };
             fetch(`https://googleapis.com{key}`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: payloadString
+              body: JSON.stringify(geminiPayload)
             })
-            .then(r => r.text())
-            .then(text => resolve(text))
+            .then(r => r.json())
+            .then(data => {
+              const txt = data.candidates?.[0]?.content?.parts?.[0]?.text || JSON.stringify(data);
+              resolve({ text: txt });
+            })
             .catch(reject);
           }
         });
@@ -123,7 +120,7 @@
     window.addEventListener('DOMContentLoaded', () => {
       const savedKey = DungeonAPI.getApiKey();
       if (savedKey) document.getElementById('apiKey').value = savedKey;
-      if (window.AndroidBridge) logDiag("Communication channels with Native APK bound successfully.");
+      if (window.AndroidBridge) logDiag("Native API bridges locked and active.");
     });
 
     document.getElementById('send').addEventListener('click', async () => {
@@ -132,24 +129,23 @@
       const key = document.getElementById('apiKey').value.trim();
       
       if (key) DungeonAPI.setApiKey(key);
-      document.getElementById('out').textContent = 'Querying the Gemini network engine...';
+      document.getElementById('out').textContent = 'Consulting the Gemini engine...';
       button.disabled = true;
 
       try {
-        const rawResponse = await DungeonAPI.sendPrompt(promptText);
-        logDiag("Data packet delivered back safely into JavaScript context.");
-        
-        const res = JSON.parse(rawResponse);
-        if (res.candidates && res.candidates[0]?.content?.parts && res.candidates[0].content.parts[0]?.text) {
-          document.getElementById('out').textContent = res.candidates[0].content.parts[0].text;
-          logDiag("Text content extracted and mapped cleanly.");
+        const res = await DungeonAPI.sendPrompt(promptText);
+        if (res.text) {
+          document.getElementById('out').textContent = res.text;
+          logDiag("Success. Response extracted cleanly.");
+        } else if (res.error) {
+          document.getElementById('out').textContent = 'Error: ' + JSON.stringify(res.error);
+          logDiag("Server exception returned.", true);
         } else {
           document.getElementById('out').textContent = JSON.stringify(res, null, 2);
-          logDiag("API returned alternate structure shape or server exception map.", true);
         }
       } catch (e) {
         document.getElementById('out').textContent = 'Pipeline error.';
-        logDiag(`Execution Exception: ${String(e)}`, true);
+        logDiag(`Crash: ${String(e)}`, true);
       } finally {
         button.disabled = false;
       }
@@ -157,7 +153,7 @@
 
     document.getElementById('copyLog').addEventListener('click', () => {
       navigator.clipboard.writeText(document.getElementById('logBox').textContent);
-      alert("Diagnostic log copied!");
+      alert("Logs copied!");
     });
   </script>
 </body>
