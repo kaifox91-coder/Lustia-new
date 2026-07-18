@@ -8,32 +8,20 @@ jobs:
   build:
     name: Build debug APK
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Fix line endings (CRLF to LF)
-        run: |
-          find . -type f \( -name "*.gradle" -o -name "*.yml" -o -name "gradlew" \) -exec sed -i 's/\r$//' {} +
-
-      - name: Set up JDK 17
+      - name: Set up Java Development Kit
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: temurin
+          java-version: 17
 
-      # CHANGED: Lowered from 8.4 to 8.2 to match your '8.1.4' plugin version
-      - name: Setup Gradle
+      - name: Initialize Gradle Environment
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.2'
+          gradle-version: 8.2
 
-      - name: Build debug APK
+      - name: Execute Android Compilation
         run: gradle assembleDebug --stacktrace
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
