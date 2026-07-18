@@ -7,25 +7,27 @@
   <style>
     body { font-family: system-ui, Roboto, Arial; margin:12px; background:#071226; color:#e6eef8; }
     .card { background:#0b1220; padding:12px; border-radius:8px; margin-bottom:12px; }
-    input, textarea { width:100%; padding:8px; border-radius:6px; border:1px solid #213445; background:#071226; color:#e6eef8; }
-    button { padding:10px 12px; border-radius:6px; background:#2563eb; color:white; border:0; }
-    pre { white-space:pre-wrap; word-wrap:break-word; color:#cfe6ff; }
+    input, textarea { width:100%; padding:8px; border-radius:6px; border:1px solid #213445; background:#071226; color:#e6eef8; box-sizing: border-box; }
+    button { padding:10px 12px; border-radius:6px; background:#2563eb; color:white; border:0; font-weight: bold; cursor: pointer; }
+    button:disabled { background:#1d4ed8; opacity: 0.6; }
+    pre { white-space:pre-wrap; word-wrap:break-word; color:#cfe6ff; font-size: 14px; line-height: 1.5; }
+    label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 4px; }
   </style>
 </head>
 <body>
   <div class="card">
-    <h2>Dungeon Floor Boss — Test</h2>
-    <label>OpenAI API Key (optional on Android)</label>
-    <input id="apiKey" placeholder="sk-..." />
-    <div style="height:8px"></div>
-    <label>Prompt</label>
+    <h2>Dungeon Floor Boss — Game Console</h2>
+    <label>Google Gemini API Key</label>
+    <input id="apiKey" type="password" placeholder="AIzaSy..." />
+    <div style="height:12px"></div>
+    <label>Dungeon Master Prompt</label>
     <textarea id="prompt" rows="6">You are a dungeon boss. Describe one opening move.</textarea>
-    <div style="height:8px"></div>
-    <button id="send">Send</button>
+    <div style="height:12px"></div>
+    <button id="send">Send Action</button>
   </div>
 
   <div class="card">
-    <h3>Response</h3>
+    <h3>Engine Output</h3>
     <pre id="out">—</pre>
   </div>
 
@@ -34,7 +36,7 @@
     const callbacks = {};
     function genId() { return 'cb_' + Math.random().toString(36).slice(2); }
 
-    // Called by Android native side
+    // Called natively by MainActivity.kt to return data into the Webview container
     window.handleNativeResponse = function(callbackId, payloadString) {
       try {
         const cb = callbacks[callbackId];
@@ -43,30 +45,124 @@
         const parsed = JSON.parse(payloadString);
         cb.resolve(parsed);
       } catch (e) {
-        console.error(e);
+        console.error("Native bridge error:", e);
       }
     };
 
-    // Dungeon API helper: either proxy to Android or use fetch (browser)
+    // Unified API Layer: Routes natively inside APK, or uses Gemini API direct fetch inside standard browsers
     const DungeonAPI = {
-      setApiKey: (k) => localStorage.setItem('openai_key', k),
-      getApiKey: () => localStorage.getItem('openai_key'),
+      setApiKey: (k) => {
+        if (window.AndroidBridge && window.AndroidBridge.setApiKey) {
+          window.AndroidBridge.setApiKey(k);
+        } else {
+          localStorage.setItem('gemini_key', k);
+        }
+      },
+      getApiKey: () => {
+        if (window.AndroidBridge && window.AndroidBridge.getApiKey) {
+          return window.AndroidBridge.getApiKey();
+        }
+        return localStorage.getItem('gemini_key');
+      },
       sendPrompt: async function(prompt) {
-        const payload = {
-          model: "gpt-4o-mini",
-          messages: [{ role: "user", content: prompt }],
-          max_tokens: 800
-        };
         const cbId = genId();
+        
         return new Promise((resolve, reject) => {
           callbacks[cbId] = { resolve, reject };
-          const json = JSON.stringify(payload);
+
+          // If inside the compiled APK container, delegate parsing to the native background threads
           if (window.AndroidBridge && window.AndroidBridge.openAIProxy) {
+            const payload = {
+              model: "gpt-4o-mini",
+              messages: [{ role: "user", content: prompt }],
+              max_tokens: 800
+            };
             try {
-              window.AndroidBridge.openAIProxy(json, cbId);
-            } catch (e) { reject(e); }
+              window.AndroidBridge.openAIProxy(JSON.stringify(payload), cbId);
+            } catch (e) { 
+              reject(e); 
+            }
           } else {
-            // Browser fallback using fetch + local key
+            // Direct Gemini Browser Fallback for clean mobile/desktop testing
+            const key = DungeonAPI.getApiKey();
+            if (!key) {
+              delete callbacks[cbId];
+              return reject("No API key saved. Please input your Gemini API Key.");
+            }
+            
+            // Format data explicitly for Google Gemini 2.5 structures
+            const geminiPayload = {
+              contents: [{
+                role: "user",
+                parts: [{ text: prompt }]
+              }]
+            };
+
+            fetch(`https://googleapis.com{key}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(geminiPayload)
+            })
+            .then(r => {
+              if (!r.ok) throw new Error(`HTTP Error ${r.status}`);
+              return r.json();
+            })
+            .then(data => {
+              // Convert the response format so the existing engine can render it cleanly
+              try {
+                const text = data.candidates[0].content.parts[0].text;
+                resolve({
+                  choices: [{ message: { content: text } }]
+                });
+              } catch (err) {
+                resolve(data); // Fallback to raw JSON dump if payload block differs
+              }
+            })
+            .catch(err => {
+              delete callbacks[cbId];
+              reject(err);
+            });
+          }
+        });
+      }
+    };
+
+    // Initialize UI fields with saved keys on page bootstrap setup
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedKey = DungeonAPI.getApiKey();
+      if (savedKey) {
+        document.getElementById('apiKey').value = savedKey;
+      }
+    });
+
+    // Core Interaction Click Handler
+    document.getElementById('send').addEventListener('click', async () => {
+      const button = document.getElementById('send');
+      const prompt = document.getElementById('prompt').value;
+      const key = document.getElementById('apiKey').value.trim();
+      
+      if (key) DungeonAPI.setApiKey(key);
+      
+      document.getElementById('out').textContent = 'Consulting the Dungeon Engine...';
+      button.disabled = true;
+
+      try {
+        const res = await DungeonAPI.sendPrompt(prompt);
+        // Clean conditional display for standardized OpenAI payloads
+        if (res.choices && res.choices.length) {
+          document.getElementById('out').textContent = res.choices.map(c => c.message?.content || JSON.stringify(c)).join("\n\n");
+        } else {
+          document.getElementById('out').textContent = JSON.stringify(res, null, 2);
+        }
+      } catch (e) {
+        document.getElementById('out').textContent = 'Error: ' + String(e);
+      } finally {
+        button.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
             const key = DungeonAPI.getApiKey();
             if (!key) return reject("No API key");
             fetch("https://api.openai.com/v1/chat/completions", {
