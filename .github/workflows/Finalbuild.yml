@@ -1,4 +1,4 @@
-name: Build Android App
+name: Build Android App Pipeline
 on:
   push:
     branches: [ main ]
@@ -6,19 +6,18 @@ on:
 
 jobs:
   build:
-    name: Compile APK
+    name: Compile APK Binary
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: Checkout Code Base
         uses: actions/checkout@v4
 
       - name: Normalize Project Resource Layout Structure
         run: |
-          mkdir -p app/src/main/res/layout
-          mkdir -p app/src/main/res/values
-          find . -type f -name "*activity_main.xml" -exec mv {} app/src/main/res/layout/activity_main.xml \;
-          find . -type f -name "*strings.xml" -exec mv {} app/src/main/res/values/strings.xml \;
-          find . -type f -name "*themes.xml" -exec mv {} app/src/main/res/values/themes.xml \;
+          mkdir -p app/src/main/res/layout app/src/main/res/values
+          find . -type f -name "*activity_main.xml" -not -path "*/res/layout/*" -exec mv {} app/src/main/res/layout/activity_main.xml \; 2>/dev/null || true
+          find . -type f -name "*strings.xml" -not -path "*/res/values/*" -exec mv {} app/src/main/res/values/strings.xml \; 2>/dev/null || true
+          find . -type f -name "*themes.xml" -not -path "*/res/values/*" -exec mv {} app/src/main/res/values/themes.xml \; 2>/dev/null || true
 
       - name: Extract Clean Android Manifest
         run: |
