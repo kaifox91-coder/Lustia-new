@@ -9,7 +9,6 @@ jobs:
     name: Build debug APK
     runs-on: ubuntu-latest
     steps:
-      # FIX: We tell the checkout step to completely ignore your heavy or corrupted git commit submodules/history trees
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
@@ -20,13 +19,23 @@ jobs:
       - name: Set up Java Development Kit
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: 17
+          distribution: 'temurin'
+          java-version: '17'
+
+      # AUTO-FIX STEP: This creates the missing gradlew files directly in the cloud
+      - name: Generate Missing Wrapper
+        run: gradle wrapper --gradle-version 8.2
 
       - name: Initialize Gradle Environment
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: 8.2
+          gradle-version: '8.2'
 
       - name: Execute Android Compilation
-        run: gradle assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
