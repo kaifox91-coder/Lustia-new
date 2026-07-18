@@ -31,9 +31,9 @@ jobs:
           gradle-version: 8.2
           cache-disabled: true
 
-      # FIX: Added 'clean' to destroy corrupt cache folders, and '--no-daemon' to enforce pure-thread building
+      # FIXED: Uses the unified runner executable environment path with the clean parameter
       - name: Execute Background Compilation Steps
-        run: ./gradlew clean assembleDebug -Pandroid.useAndroidX=true --no-daemon --no-build-cache --stacktrace || gradle clean assembleDebug -Pandroid.useAndroidX=true --no-daemon --no-build-cache --stacktrace
+        run: gradle clean assembleDebug -Pandroid.useAndroidX=true --no-daemon --no-build-cache --stacktrace
         env:
           GRADLE_OPTS: -Xmx1536m -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=1 -Dorg.gradle.daemon=false
 
