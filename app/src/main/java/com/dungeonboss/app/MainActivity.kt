@@ -8,19 +8,17 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import androidx.appcompat.app.AppCompatActivity
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody
+import com.google.ai.client.generativeai.GenerativeModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.json.JSONObject
-import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private lateinit var prefs: SharedPreferences
-    private val httpClient = OkHttpClient()
-    private val executor = Executors.newSingleThreadExecutor()
+    private val scope = CoroutineScope(Dispatchers.Main)
 
     companion object {
         private const val PREFS_NAME = "dungeon_prefs"
@@ -59,30 +57,35 @@ class MainActivity : AppCompatActivity() {
         fun openAIProxy(payloadJson: String, callbackId: String) {
             val apiKey = prefs.getString(KEY_API, null)
             if (apiKey.isNullOrBlank()) {
-                val errJson = "{\"error\": \"no_api_key\"}"
-                postCallback(callbackId, errJson)
+                postCallback(callbackId, "{\"error\": \"Missing API Key definition.\"}")
                 return
             }
-            executor.execute {
+
+            scope.launch(Dispatchers.IO) {
                 try {
-                    val mediaType = "application/json; charset=utf-8".toMediaType()
-                    val body = RequestBody.create(mediaType, payloadJson)
+                    // Extract the clean prompt text from the incoming JSON packet
+                    val json = JSONObject(payloadJson)
+                    val promptText = json.getString("prompt")
+
+                    // Instantiate the official Gemini Model directly using Google's SDK libraries
+                    val geminiModel = GenerativeModel(
+                        modelName = "gemini-2.5-flash",
+                        apiKey = apiKey
+                    )
+
+                    // Execute content generation task securely
+                    val response = geminiModel.generateContent(promptText)
+                    val responseText = response.text ?: "No text generated."
+
+                    // Package into a clean JSON reply to pass back to the index interface layout
+                    val successJson = JSONObject()
+                    successJson.put("text", responseText)
                     
-                    val req = Request.Builder()
-                        .url("https://googleapis.com")
-                        .addHeader("Content-Type", "application/json")
-                        .addHeader("x-goog-api-key", apiKey)
-                        .post(body)
-                        .build()
-                        
-                    val resp = httpClient.newCall(req).execute()
-                    val respStr = resp.body?.string() ?: "{}"
-                    
-                    postCallback(callbackId, respStr)
+                    postCallback(callbackId, successJson.toString())
                 } catch (e: Exception) {
-                    val errMsg = e.message ?: "unknown"
-                    val errJson = "{\"error\": \"$errMsg\"}"
-                    postCallback(callbackId, errJson)
+                    val errJson = JSONObject()
+                    errJson.put("error", e.message ?: "Unknown Exception.")
+                    postCallback(callbackId, errJson.toString())
                 }
             }
         }
@@ -99,10 +102,5 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        executor.shutdownNow()
     }
 }
