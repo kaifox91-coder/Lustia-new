@@ -19,16 +19,12 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      # This downloads, sets up, and injects Gradle 8.4 globally onto the runner path
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-
-      # FIX 1: Change "./gradlew" to "gradle" so it uses the pre-installed system tool
-      - name: Build debug APK
-        run: gradle assembleDebug
-
-      # FIX 2: Correct your upload path to match standard Android structure
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          gradle-version: '8.4' 
+
+      # Now we call the globally exposed executable with debugging flags active
+      - name: Build debug APK
+        run: gradle assembleDebug --stacktrace
