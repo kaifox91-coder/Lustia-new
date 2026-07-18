@@ -12,7 +12,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # AUTOMATIC MANIFEST OVERWRITE: This generates a clean file in the cloud with raw quotes
       - name: Force Clean Manifest Generation
         run: |
           mkdir -p app/src/main
@@ -49,8 +48,11 @@ jobs:
         with:
           gradle-version: 8.2
 
+      # FIX: Hard-throttling workers and tasks to eliminate multi-threaded memory crashes
       - name: Build Code Base
-        run: gradle assembleDebug --no-daemon --stacktrace --no-watch-fs
+        run: gradle assembleDebug --no-daemon --stacktrace --no-watch-fs --max-workers=1 --parallel=false
+        env:
+          GRADLE_OPTS: -Xmx1536m -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=1 -Dorg.gradle.daemon=false
 
       - name: Save APK Result
         uses: actions/upload-artifact@v4
