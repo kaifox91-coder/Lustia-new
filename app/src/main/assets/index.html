@@ -16,7 +16,7 @@
 </head>
 <body>
   <div class="card">
-    <h2>Dungeon Floor Boss — Game Console</h2>
+    <h2>Dungeon Floor Boss Console</h2>
     <label>Google Gemini API Key</label>
     <input id="apiKey" type="password" placeholder="AIzaSy..." />
     <div style="height:12px"></div>
@@ -32,11 +32,9 @@
   </div>
 
   <script>
-    // Simple callback registry for native responses
     const callbacks = {};
     function genId() { return 'cb_' + Math.random().toString(36).slice(2); }
 
-    // Called natively by MainActivity.kt to return data into the Webview container
     window.handleNativeResponse = function(callbackId, payloadString) {
       try {
         const cb = callbacks[callbackId];
@@ -45,11 +43,10 @@
         const parsed = JSON.parse(payloadString);
         cb.resolve(parsed);
       } catch (e) {
-        console.error("Native bridge error:", e);
+        console.error("Native bridge parse error:", e);
       }
     };
 
-    // Unified API Layer: Routes natively inside APK, or uses Gemini API direct fetch inside standard browsers
     const DungeonAPI = {
       setApiKey: (k) => {
         if (window.AndroidBridge && window.AndroidBridge.setApiKey) {
@@ -64,60 +61,43 @@
         }
         return localStorage.getItem('gemini_key');
       },
-      sendPrompt: async function(prompt) {
+      sendPrompt: async function(promptText) {
         const cbId = genId();
         
+        // Pure Gemini Request Structure
+        const geminiPayload = {
+          contents: [{
+            role: "user",
+            parts: [{ text: promptText }]
+          }]
+        };
+        const payloadString = JSON.stringify(geminiPayload);
+
         return new Promise((resolve, reject) => {
           callbacks[cbId] = { resolve, reject };
 
-          // If inside the compiled APK container, delegate parsing to the native background threads
           if (window.AndroidBridge && window.AndroidBridge.openAIProxy) {
-            const payload = {
-              model: "gpt-4o-mini",
-              messages: [{ role: "user", content: prompt }],
-              max_tokens: 800
-            };
             try {
-              window.AndroidBridge.openAIProxy(JSON.stringify(payload), cbId);
+              // Pass the pure Gemini structure straight down to the native app proxy
+              window.AndroidBridge.openAIProxy(payloadString, cbId);
             } catch (e) { 
               reject(e); 
             }
           } else {
-            // Direct Gemini Browser Fallback for clean mobile/desktop testing
+            // Direct browser fallback testing endpoint
             const key = DungeonAPI.getApiKey();
             if (!key) {
               delete callbacks[cbId];
-              return reject("No API key saved. Please input your Gemini API Key.");
+              return reject("Please save your Gemini API Key first.");
             }
-            
-            // Format data explicitly for Google Gemini 2.5 structures
-            const geminiPayload = {
-              contents: [{
-                role: "user",
-                parts: [{ text: prompt }]
-              }]
-            };
 
             fetch(`https://googleapis.com{key}`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(geminiPayload)
+              body: payloadString
             })
-            .then(r => {
-              if (!r.ok) throw new Error(`HTTP Error ${r.status}`);
-              return r.json();
-            })
-            .then(data => {
-              // Convert the response format so the existing engine can render it cleanly
-              try {
-                const text = data.candidates[0].content.parts[0].text;
-                resolve({
-                  choices: [{ message: { content: text } }]
-                });
-              } catch (err) {
-                resolve(data); // Fallback to raw JSON dump if payload block differs
-              }
-            })
+            .then(r => r.json())
+            .then(data => resolve(data))
             .catch(err => {
               delete callbacks[cbId];
               reject(err);
@@ -127,30 +107,27 @@
       }
     };
 
-    // Initialize UI fields with saved keys on page bootstrap setup
     window.addEventListener('DOMContentLoaded', () => {
       const savedKey = DungeonAPI.getApiKey();
-      if (savedKey) {
-        document.getElementById('apiKey').value = savedKey;
-      }
+      if (savedKey) document.getElementById('apiKey').value = savedKey;
     });
 
-    // Core Interaction Click Handler
     document.getElementById('send').addEventListener('click', async () => {
       const button = document.getElementById('send');
-      const prompt = document.getElementById('prompt').value;
+      const promptText = document.getElementById('prompt').value;
       const key = document.getElementById('apiKey').value.trim();
       
       if (key) DungeonAPI.setApiKey(key);
       
-      document.getElementById('out').textContent = 'Consulting the Dungeon Engine...';
+      document.getElementById('out').textContent = 'Consulting the Gemini Engine...';
       button.disabled = true;
 
       try {
-        const res = await DungeonAPI.sendPrompt(prompt);
-        // Clean conditional display for standardized OpenAI payloads
-        if (res.choices && res.choices.length) {
-          document.getElementById('out').textContent = res.choices.map(c => c.message?.content || JSON.stringify(c)).join("\n\n");
+        const res = await DungeonAPI.sendPrompt(promptText);
+        
+        // Directly extract Gemini text structure fields natively
+        if (res.candidates && res.candidates[0]?.content?.parts[0]?.text) {
+          document.getElementById('out').textContent = res.candidates[0].content.parts[0].text;
         } else {
           document.getElementById('out').textContent = JSON.stringify(res, null, 2);
         }
@@ -158,40 +135,6 @@
         document.getElementById('out').textContent = 'Error: ' + String(e);
       } finally {
         button.disabled = false;
-      }
-    });
-  </script>
-</body>
-</html>
-            const key = DungeonAPI.getApiKey();
-            if (!key) return reject("No API key");
-            fetch("https://api.openai.com/v1/chat/completions", {
-              method: "POST",
-              headers: { "Content-Type":"application/json", "Authorization":"Bearer "+key },
-              body: json
-            }).then(r=>r.json()).then(data=>{
-              resolve(data);
-            }).catch(reject);
-          }
-        });
-      }
-    };
-
-    document.getElementById('send').addEventListener('click', async () => {
-      const prompt = document.getElementById('prompt').value;
-      const key = document.getElementById('apiKey').value.trim();
-      if (key) DungeonAPI.setApiKey(key);
-      document.getElementById('out').textContent = 'Waiting...';
-      try {
-        const res = await DungeonAPI.sendPrompt(prompt);
-        // Show either structured response or choices
-        if (res.choices && res.choices.length) {
-          document.getElementById('out').textContent = res.choices.map(c=>c.message?.content||JSON.stringify(c)).join("\n\n");
-        } else {
-          document.getElementById('out').textContent = JSON.stringify(res, null, 2);
-        }
-      } catch (e) {
-        document.getElementById('out').textContent = 'Error: ' + String(e);
       }
     });
   </script>
