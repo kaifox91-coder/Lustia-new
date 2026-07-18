@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android App
 on:
   push:
     branches: [ main ]
@@ -6,34 +6,34 @@ on:
 
 jobs:
   build:
-    name: Build debug APK
+    name: Compile APK
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
 
-      - name: Set up Java Development Kit
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: temurin
+          java-version: 17
 
-      - name: Initialize Gradle Environment
+      - name: Setup Gradle Tool
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.2'
+          gradle-version: 8.2
 
-      # FORCE COMPILE STEP: This searches for your gradle files and runs compilation wherever they are found
-      - name: Locate and Execute Android Compilation
-        run: |
-          if [ -f "build.gradle" ]; then
-            echo "Root build file detected. Compiling directly..."
-            gradle assembleDebug --stacktrace
-          else
-            echo "Root build file not found. Searching subdirectories..."
-            cd $(dirname $(find . -name "build.gradle" | head -n 1))
+      # FIX: Added --no-daemon, --stacktrace, and --no-watch-fs flags
+      - name: Build Code Base
+        run: gradle assembleDebug --no-daemon --stacktrace --no-watch-fs
+        env:
+          GRADLE_OPTS: -Xmx2048m -Dorg.gradle.daemon=false
+
+      - name: Save APK Result
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
             echo "Moved into directory: $PWD"
             gradle assembleDebug --stacktrace
           fi
