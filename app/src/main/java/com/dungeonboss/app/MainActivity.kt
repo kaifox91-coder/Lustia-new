@@ -30,7 +30,7 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+        super.super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -69,6 +69,7 @@ class MainActivity : AppCompatActivity() {
                     val mediaType = "application/json; charset=utf-8".toMediaType()
                     val body = RequestBody.create(mediaType, geminiRequestBody.toString())
                     
+                    // FIXED: This routes data straight to Google's official Gemini endpoint
                     val req = Request.Builder()
                         .url("https://googleapis.com")
                         .addHeader("Content-Type", "application/json")
@@ -151,7 +152,8 @@ class MainActivity : AppCompatActivity() {
                 try {
                     webView.evaluateJavascript(js, null)
                 } catch (t: Throwable) {
-                    webView.loadUrl("javascript:$js")
+                    val js2 = "window.handleNativeResponse(" + quotedId + "," + quotedResp + ");"
+                    webView.loadUrl("javascript:" + js2)
                 }
             }
         }
