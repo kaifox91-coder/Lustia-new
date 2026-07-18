@@ -16,16 +16,14 @@ jobs:
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
+          distribution: 'temurin'
           java-version: '17'
 
-      # This pulls down version 8.4 and makes the global "gradle" command point to it
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.4'
 
-      # We drop the "./" and "w" so it runs the downloaded global framework tool
       - name: Build debug APK
         run: gradle assembleDebug --stacktrace
 
