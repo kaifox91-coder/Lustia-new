@@ -19,6 +19,40 @@ jobs:
           find . -type f -name "*strings.xml" -not -path "*/res/values/*" -exec mv {} app/src/main/res/values/strings.xml \; 2>/dev/null || true
           find . -type f -name "*themes.xml" -not -path "*/res/values/*" -exec mv {} app/src/main/res/values/themes.xml \; 2>/dev/null || true
 
+      # GUARANTEED FIX: This writes a completely clean manifest file straight to the server disk, bypassing phone clipboard bugs completely
+      - name: Overwrite with Clean Manifest
+        run: |
+          mkdir -p app/src/main
+          cat << 'EOF' > app/src/main/AndroidManifest.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://android.com"
+              xmlns:tools="http://android.com">
+
+              <uses-permission android:name="android.permission.INTERNET" />
+
+              <application
+                  android:allowBackup="true"
+                  android:supportsRtl="true"
+                  android:label="@string/app_name"
+                  android:theme="@style/Theme.App"
+                  android:usesCleartextTraffic="true"
+                  tools:node="merge">
+                  
+                  <activity 
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:theme="@style/Theme.App">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+                  
+              </application>
+
+          </manifest>
+          EOF
+
       - name: Set up Java Setup Environment
         uses: actions/setup-java@v4
         with:
@@ -31,7 +65,6 @@ jobs:
           gradle-version: 8.2
           cache-disabled: true
 
-      # FIXED: Uses the unified runner executable environment path with the clean parameter
       - name: Execute Background Compilation Steps
         run: gradle clean assembleDebug -Pandroid.useAndroidX=true --no-daemon --no-build-cache --stacktrace
         env:
