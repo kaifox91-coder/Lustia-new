@@ -69,7 +69,6 @@ class MainActivity : AppCompatActivity() {
                     val mediaType = "application/json; charset=utf-8".toMediaType()
                     val body = RequestBody.create(mediaType, geminiRequestBody.toString())
                     
-                    // FIXED: Replaced the placeholder address with the exact production endpoint required by the Gemini 2.5 Flash model
                     val req = Request.Builder()
                         .url("https://googleapis.com")
                         .addHeader("Content-Type", "application/json")
