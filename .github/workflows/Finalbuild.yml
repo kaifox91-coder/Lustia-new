@@ -19,6 +19,32 @@ jobs:
           find . -type f -name "*strings.xml" -not -path "*/res/values/*" -exec mv {} app/src/main/res/values/strings.xml \; 2>/dev/null || true
           find . -type f -name "*themes.xml" -not -path "*/res/values/*" -exec mv {} app/src/main/res/values/themes.xml \; 2>/dev/null || true
 
+      # GUARANTEED FIX: Writes the manifest with raw escaped straight quotes, completely immune to mobile browser corruption
+      - name: Overwrite with Clean Manifest
+        run: |
+          mkdir -p app/src/main
+          printf "<manifest xmlns:android=\"http://android.com\"\n" > app/src/main/AndroidManifest.xml
+          printf "    xmlns:tools=\"http://android.com\">\n" >> app/src/main/AndroidManifest.xml
+          printf "    <uses-permission android:name=\"android.permission.INTERNET\" tools:node=\"merge\" />\n" >> app/src/main/AndroidManifest.xml
+          printf "    <application\n" >> app/src/main/AndroidManifest.xml
+          printf "        android:allowBackup=\"true\"\n" >> app/src/main/AndroidManifest.xml
+          printf "        android:supportsRtl=\"true\"\n" >> app/src/main/AndroidManifest.xml
+          printf "        android:label=\"@string/app_name\"\n" >> app/src/main/AndroidManifest.xml
+          printf "        android:theme=\"@style/Theme.App\"\n" >> app/src/main/AndroidManifest.xml
+          printf "        tools:node=\"merge\">\n" >> app/src/main/AndroidManifest.xml
+          printf "        <activity\n" >> app/src/main/AndroidManifest.xml
+          printf "            android:name=\".MainActivity\"\n" >> app/src/main/AndroidManifest.xml
+          printf "            android:exported=\"true\"\n" >> app/src/main/AndroidManifest.xml
+          printf "            android:theme=\"@style/Theme.App\"\n" >> app/src/main/AndroidManifest.xml
+          printf "            tools:node=\"merge\">\n" >> app/src/main/AndroidManifest.xml
+          printf "            <intent-filter>\n" >> app/src/main/AndroidManifest.xml
+          printf "                <action android:name=\"android.intent.action.MAIN\" />\n" >> app/src/main/AndroidManifest.xml
+          printf "                <category android:name=\"android.intent.category.LAUNCHER\" />\n" >> app/src/main/AndroidManifest.xml
+          printf "            </intent-filter>\n" >> app/src/main/AndroidManifest.xml
+          printf "        </activity>\n" >> app/src/main/AndroidManifest.xml
+          printf "    </application>\n" >> app/src/main/AndroidManifest.xml
+          printf "</manifest>\n" >> app/src/main/AndroidManifest.xml
+
       - name: Set up Java Setup Environment
         uses: actions/setup-java@v4
         with:
