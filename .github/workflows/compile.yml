@@ -12,6 +12,29 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # FORCE CLEAN GENERATION: This ensures the manifest uses raw, straight quotes that the compiler needs
+      - name: Generate Clean Android Manifest
+        run: |
+          mkdir -p app/src/main
+          printf '<manifest xmlns:android="http://android.com">\n' > app/src/main/AndroidManifest.xml
+          printf '    <uses-permission android:name="android.permission.INTERNET" />\n' >> app/src/main/AndroidManifest.xml
+          printf '    <application\n' >> app/src/main/AndroidManifest.xml
+          printf '        android:allowBackup="true"\n' >> app/src/main/AndroidManifest.xml
+          printf '        android:supportsRtl="true"\n' >> app/src/main/AndroidManifest.xml
+          printf '        android:label="@string/app_name"\n' >> app/src/main/AndroidManifest.xml
+          printf '        android:theme="@style/Theme.App">\n' >> app/src/main/AndroidManifest.xml
+          printf '        <activity\n' >> app/src/main/AndroidManifest.xml
+          printf '            android:name=".MainActivity"\n' >> app/src/main/AndroidManifest.xml
+          printf '            android:exported="true"\n' >> app/src/main/AndroidManifest.xml
+          printf '            android:theme="@style/Theme.App">\n' >> app/src/main/AndroidManifest.xml
+          printf '            <intent-filter>\n' >> app/src/main/AndroidManifest.xml
+          printf '                <action android:name="android.intent.action.MAIN" />\n' >> app/src/main/AndroidManifest.xml
+          printf '                <category android:name="android.intent.category.LAUNCHER" />\n' >> app/src/main/AndroidManifest.xml
+          printf '            </intent-filter>\n' >> app/src/main/AndroidManifest.xml
+          printf '        </activity>\n' >> app/src/main/AndroidManifest.xml
+          printf '    </application>\n' >> app/src/main/AndroidManifest.xml
+          printf '</manifest>\n' >> app/src/main/AndroidManifest.xml
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -23,6 +46,11 @@ jobs:
         with:
           gradle-version: 8.2
 
-      # FIX: Injects the AndroidX flag directly into the command using -P to skip properties file forks
       - name: Build Code Base
         run: gradle assembleDebug -Pandroid.useAndroidX=true --no-daemon --stacktrace
+
+      - name: Save APK Result
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
