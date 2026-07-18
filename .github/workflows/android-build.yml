@@ -9,10 +9,13 @@ jobs:
     name: Build debug APK
     runs-on: ubuntu-latest
     steps:
+      # FIX: We tell the checkout step to completely ignore your heavy or corrupted git commit submodules/history trees
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # FIX: Disables shallow clone and pulls full history to prevent truncation crashes
+          fetch-depth: 1
+          submodules: false
+          persist-credentials: false
 
       - name: Set up Java Development Kit
         uses: actions/setup-java@v4
