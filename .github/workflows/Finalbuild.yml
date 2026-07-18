@@ -12,6 +12,19 @@ jobs:
       - name: Checkout Code Base
         uses: actions/checkout@v4
 
+      - name: Normalize Project Resource Layout Structure
+        run: |
+          mkdir -p app/src/main/res/layout app/src/main/res/values
+          find . -type f -name "*activity_main.xml" -not -path "*/res/layout/*" -exec mv {} app/src/main/res/layout/activity_main.xml \; 2>/dev/null || true
+          find . -type f -name "*strings.xml" -not -path "*/res/values/*" -exec mv {} app/src/main/res/values/strings.xml \; 2>/dev/null || true
+          find . -type f -name "*themes.xml" -not -path "*/res/values/*" -exec mv {} app/src/main/res/values/themes.xml \; 2>/dev/null || true
+
+      # GUARANTEED FIX: Decodes a pure, untouched string containing standard straight quotes directly onto the disk
+      - name: Extract Clean Android Manifest
+        run: |
+          mkdir -p app/src/main
+          echo "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPG1hbmlmZXN0IHhtbG5zOmFuZHJvaWQ9Imh0dHA6Ly9zY2hlbWFzLmFuZHJvaWQuY29tL2Fway9yZXMvYW5kcm9pZCIKICAgIHhtbG5zOnRvb2xzPSJodHRwOi8vc2NoZW1hcy5hbmRyb2lkLmNvbS90b29scyI+CiAgICA8dXNlcy1wZXJtaXNzaW9uIGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5wZXJtaXNzaW9uLklOVEVSTkVUIiB0b29sczpub2RlPSJtZXJnZSIgLz4KICAgIDxhcHBsaWNhdGlvbgogICAgICAgIGFuZHJvaWQ6YWxsb3dCYWNrdXA9InRydWUiCiAgICAgICAgYW5kcm9pZDpzdXBwb3J0c1J0bD0idHJ1ZSIKICAgICAgICBhbmRyb2lkOmxhYmVsPSJAc3RyaW5nL2FwcF9uYW1lIgogICAgICAgIGFuZHJvaWQ6dGhlbWU9IkBzdHlsZS9UaGVtZS5BcHAiCiAgICAgICAgdG9vbHM6bm9kZT0ibWVyZ2UiPgogICAgICAgIDxhY3Rpdml0eQogICAgICAgICAgICBhbmRyb2lkOm5hbWU9Ii5NYWluQWN0aXZpdHkiCiAgICAgICAgICAgIGFuZHJvaWQ6ZXhwb3J0ZWQ9InRydWUiCiAgICAgICAgICAgIGFuZHJvaWQ6dGhlbWU9IkBzdHlsZS9UaGVtZS5BcHAiCiAgICAgICAgICAgIHRvb2xzOm5vZGU9Im1lcmdlIj4KICAgICAgICAgICAgPGludGVudC1maWx0ZXI+CiAgICAgICAgICAgICAgICA8YWN0aW9uIGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5pbnRlbnQuYWN0aW9uLk1BSU4iIC8+CiAgICAgICAgICAgICAgICA8Y2F0ZWdvcnkgYW5kcm9pZDpuYW1lPSJhbmRyb2lkLmludGVudC5jYXRlZ29yeS5MQVVOQ0hFUiIgLz4KICAgICAgICAgICAgPC9pbnRlbnQtZmlsdGVyPgogICAgICAgIDwvYWN0aXZpdHk+CiAgICA8L2FwcGxpY2F0aW9uPgo8L21hbmlmZXN0Pg==" | base64 --decode > app/src/main/AndroidManifest.xml
+
       - name: Set up Java Setup Environment
         uses: actions/setup-java@v4
         with:
