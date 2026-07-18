@@ -12,6 +12,32 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # AUTOMATIC MANIFEST OVERWRITE: This generates a clean file in the cloud with raw quotes
+      - name: Force Clean Manifest Generation
+        run: |
+          mkdir -p app/src/main
+          cat << 'EOF' > app/src/main/AndroidManifest.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://android.com">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <application
+                  android:allowBackup="true"
+                  android:supportsRtl="true"
+                  android:label="@string/app_name"
+                  android:theme="@style/Theme.App">
+                  <activity 
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:theme="@style/Theme.App">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -23,11 +49,8 @@ jobs:
         with:
           gradle-version: 8.2
 
-      # FIX: Added --no-daemon, --stacktrace, and --no-watch-fs flags
       - name: Build Code Base
         run: gradle assembleDebug --no-daemon --stacktrace --no-watch-fs
-        env:
-          GRADLE_OPTS: -Xmx2048m -Dorg.gradle.daemon=false
 
       - name: Save APK Result
         uses: actions/upload-artifact@v4
