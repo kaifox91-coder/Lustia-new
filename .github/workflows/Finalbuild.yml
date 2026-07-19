@@ -25,7 +25,6 @@ jobs:
           cache-disabled: true
 
       - name: Execute Background Compilation Steps
-        # FIXED: Directly compiles the debug build target using root workspace properties
         run: gradle assembleDebug -Pandroid.useAndroidX=true --no-daemon --no-build-cache --stacktrace
         env:
           GRADLE_OPTS: -Xmx1536m -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=1 -Dorg.gradle.daemon=false
