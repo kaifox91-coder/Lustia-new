@@ -4,6 +4,11 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
+    plugins {
+        // Enforces exact plugin version mapping across all submodules globally
+        id 'com.android.application' version '8.1.4'
+        id 'org.jetbrains.kotlin.android' version '1.9.10'
+    }
 }
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
