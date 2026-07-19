@@ -1,4 +1,5 @@
 plugins {
+    // Inherits clean version metrics natively from settings.gradle
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
 }
@@ -6,7 +7,6 @@ plugins {
 android {
     namespace 'com.dungeonboss.app'
     compileSdk 34
-    buildToolsVersion "34.0.0"
 
     defaultConfig {
         applicationId 'com.dungeonboss.app'
@@ -34,10 +34,11 @@ android {
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'androidx.webkit:webkit:1.6.0'
+    implementation 'androidx.core:core-ktx:1.12.0'
+    
+    // Official Google Android SDK packages required for native Gemini operations
     implementation 'com.google.ai.client.generativeai:generativeai:0.2.2'
-}
-    implementation 'androidx.webkit:webkit:1.6.0'
-    // Official Google Gemini SDK for Android
-    implementation 'com.google.ai.client.generativeai:generativeai:0.2.2'
+    
+    // Native runtime scopes to cleanly cycle threading events
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.6.2'
 }
