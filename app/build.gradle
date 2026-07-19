@@ -1,8 +1,17 @@
-plugins {
-    // Inherits clean version metrics natively from settings.gradle
-    id 'com.android.application'
-    id 'org.jetbrains.kotlin.android'
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // FIXED: Declaring build scripts directly in the module secures the manifest namespace compilers
+        classpath 'com.android.tools.build:gradle:8.1.4'
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.10'
+    }
 }
+
+apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
 
 android {
     namespace 'com.dungeonboss.app'
