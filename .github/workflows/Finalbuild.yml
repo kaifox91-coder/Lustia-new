@@ -25,7 +25,8 @@ jobs:
           cache-disabled: true
 
       - name: Execute Background Compilation Steps
-        run: gradle assembleDebug -Pandroid.useAndroidX=true --no-daemon --no-build-cache --stacktrace
+        # FIXED: Forces the standalone runner tool to parse the absolute repository root workspace parameters
+        run: gradle assembleDebug -p "$GITHUB_WORKSPACE" -Pandroid.useAndroidX=true --no-daemon --no-build-cache --stacktrace
         env:
           GRADLE_OPTS: -Xmx1536m -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=1 -Dorg.gradle.daemon=false
 
