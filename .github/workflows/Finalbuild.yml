@@ -25,8 +25,8 @@ jobs:
           cache-disabled: true
 
       - name: Execute Background Compilation Steps
-        # Passes the -p workspace flag to bundle module builds securely
-        run: gradle assembleDebug -p "$GITHUB_WORKSPACE" --no-daemon --no-build-cache --stacktrace
+        # FIXED: Injects the AndroidX support flag directly into the target project execution path
+        run: gradle assembleDebug -p "$GITHUB_WORKSPACE" -Pandroid.useAndroidX=true --no-daemon --no-build-cache --stacktrace
         env:
           GRADLE_OPTS: -Xmx1536m -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=1 -Dorg.gradle.daemon=false
 
