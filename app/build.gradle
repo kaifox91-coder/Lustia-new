@@ -1,17 +1,7 @@
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        // FIXED: Declaring build scripts directly in the module secures the manifest namespace compilers
-        classpath 'com.android.tools.build:gradle:8.1.4'
-        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.10'
-    }
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
 }
-
-apply plugin: 'com.android.application'
-apply plugin: 'org.jetbrains.kotlin.android'
 
 android {
     namespace 'com.dungeonboss.app'
@@ -45,7 +35,7 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.core:core-ktx:1.12.0'
     
-    // Official Google Android SDK packages required for native Gemini operations
+    // Core engine packages required for native Gemini operations
     implementation 'com.google.ai.client.generativeai:generativeai:0.2.2'
     
     // Native runtime scopes to cleanly cycle threading events
