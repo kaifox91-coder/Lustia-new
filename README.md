@@ -27,17 +27,32 @@ A local Android chatbot powered by Google Gemini AI, fully playable on your phon
 4. Copy the key
 ```
 
-#### 2. Update the API Key in Code
-Open `app/src/main/java/com/dungeonboss/app/ChatScreen.kt` and replace:
-```kotlin
-private val apiKey = "YOUR_GEMINI_API_KEY"
-```
-with your actual key:
-```kotlin
-private val apiKey = "your-actual-gemini-api-key-here"
+#### 2. Store API Key in Gradle User Properties (Recommended)
+Create or edit this file on your machine:
+
+- macOS/Linux: `~/.gradle/gradle.properties`
+- Windows: `%USERPROFILE%\.gradle\gradle.properties`
+
+Add:
+```properties
+GEMINI_API_KEY=AIzaSy_YOUR_ACTUAL_KEY_HERE
 ```
 
-**⚠️ Security Note:** For production apps, store the API key in `BuildConfig` using Gradle secrets. See [Google's guide](https://developers.google.com/identity/protocols/oauth2#secretsclient).
+Then in `app/build.gradle`, expose it through BuildConfig:
+```gradle
+android {
+    defaultConfig {
+        buildConfigField "String", "TEST_API_KEY", "\"${project.findProperty("GEMINI_API_KEY") ?: ""}\""
+    }
+}
+```
+
+Use it in code:
+```kotlin
+val geminiService = GeminiService(BuildConfig.TEST_API_KEY)
+```
+
+> Never commit secrets to source files.
 
 #### 3. Build the APK
 ```bash
@@ -100,20 +115,11 @@ app/src/main/AndroidManifest.xml # Internet permissions
 ## 🔧 Configuration
 
 ### API Key Management
-For **development**: Store directly in code (as shown above)  
-For **production**: Use Gradle BuildConfig:
+Use user-level Gradle properties + BuildConfig:
 
-```gradle
-// In app/build.gradle
-defaultConfig {
-    manifestPlaceholders = [geminiApiKey: "YOUR_KEY"]
-}
-```
-
-Then in `AndroidManifest.xml`:
-```xml
-<meta-data android:name="com.google.ai.api_key" android:value="${geminiApiKey}" />
-```
+1. Put `GEMINI_API_KEY=...` in `~/.gradle/gradle.properties`
+2. Expose with `BuildConfig.TEST_API_KEY` in `app/build.gradle`
+3. Inject via `GeminiService(BuildConfig.TEST_API_KEY)`
 
 ### Customizing the Dungeon's Voice
 Edit `GeminiService.kt` line 41-62 to change the system prompt and dungeon personality.
@@ -148,8 +154,8 @@ app/build/outputs/apk/release/app-release.apk
 
 ### "API key is invalid"
 - ✅ Verify the key from [AI Studio](https://aistudio.google.com/app/apikey)
-- ✅ Paste it exactly (no extra spaces)
-- ✅ Restart the app after updating
+- ✅ Ensure `GEMINI_API_KEY` is set in `~/.gradle/gradle.properties`
+- ✅ Sync Gradle / restart app after updating
 
 ### "Internet permission denied"
 - ✅ Check `AndroidManifest.xml` has `<uses-permission android:name="android.permission.INTERNET" />`
@@ -190,7 +196,7 @@ gameState.resetGame() // Clears everything
 - ✅ **All game data stored locally** - Nothing sent to servers except Gemini API calls
 - ✅ **No accounts needed** - Play offline after initial setup
 - ✅ **Internet only for Gemini** - Chat responses require API calls
-- ⚠️ **API Key in Code** - For development only. Use secure storage for production.
+- ✅ **API key not stored in source** - Keep it in user-level Gradle properties
 
 ## 📖 Character Creation Guide
 
@@ -256,7 +262,7 @@ Today, there is a knock at the door.
 
 ## 🚢 Deployment Checklist
 
-- [ ] Replace API key with secure storage method
+- [ ] Ensure API key comes from `~/.gradle/gradle.properties`
 - [ ] Test on multiple Android devices
 - [ ] Verify internet permission is granted
 - [ ] Test character creation through all 7 steps
