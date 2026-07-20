@@ -275,37 +275,235 @@ fun ChatScreen(viewModel: ChatViewModel) {
 }
 
 @Composable
-fun ChatMessageBubble(message: UIChatMessage) {
+fun ChatScreen(viewModel: ChatViewModel) {
+    var userInput by remember { mutableStateOf("") }
+    val messages = viewModel.uiMessages.value
+    val isLoading = viewModel.isLoading.value
+    val boss = viewModel.boss.value
+    val listState = rememberLazyListState()
+
+    // 🎨 EXACT COMPONENT COLOR MAPS FROM THE SCREENSHOT
+    val colorBackground = Color(0xFF030008)       // Deep space pitch black canvas
+    val colorMenuBackground = Color(0xFF160822)   // Very dark purple menu panel base
+    val colorBorderActive = Color(0xFF32144B)     // Subdued purple element borders
+    val colorTextBrightNeon = Color(0xFFE19CD4)   // Bright lavender-pink title accents
+    val colorTextBodyWhite = Color(0xFFFFFFFF)    // Classic crisp story text white
+
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(messages.size - 1)
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(colorBackground)
+    ) {
+        // Top Header Status Panel
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            color = colorMenuBackground,
+            shape = RoundedCornerShape(4.dp),
+            border = BorderStroke(1.dp, colorBorderActive)
+        ) {
+            Row(
+                modifier = Modifier
+                    .padding(12.dp)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = boss.name.ifEmpty { "Unnamed Boss" },
+                        color = colorTextBrightNeon, // 👾 Glowing Title
+                        fontFamily = TitsFontFamily,   // 🔤 Clean Sans Type
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "${boss.race} • ${boss.dungeonVoice}",
+                        color = colorTextBodyWhite.copy(alpha = 0.6f),
+                        fontFamily = TitsFontFamily,
+                        fontSize = 12.sp
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "Coins: ${viewModel.coins.value}",
+                        color = colorTextBrightNeon,
+                        fontFamily = TitsFontFamily,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Infamy: ${viewModel.infamy.value}",
+                        color = Color(0xFFFF4FA8), // Neon Alert Pink
+                        fontFamily = TitsFontFamily,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // Chat text stream area
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(8.dp),
+            state = listState,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(messages) { message ->
+                ChatMessageBubble(
+                    message = message, 
+                    fontFamily = TitsFontFamily,
+                    bodyColor = colorTextBodyWhite,
+                    systemColor = colorTextBrightNeon,
+                    panelColor = colorMenuBackground,
+                    borderColor = colorBorderActive
+                )
+            }
+            
+            if (isLoading) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                        horizontalArrangement = Arrangement.Start
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = colorTextBrightNeon,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Generating response...",
+                            color = colorTextBodyWhite.copy(alpha = 0.5f),
+                            fontFamily = TitsFontFamily,
+                            fontStyle = FontStyle.Italic,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        // Bottom User Input Interaction Area
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            color = colorMenuBackground,
+            shape = RoundedCornerShape(4.dp),
+            border = BorderStroke(1.dp, colorBorderActive)
+        ) {
+            Row(
+                modifier = Modifier
+                    .padding(8.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextField(
+                    value = userInput,
+                    onValueChange = { userInput = it },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp),
+                    placeholder = {
+                        Text(
+                            text = "Speak to the Dungeon...",
+                            color = colorTextBodyWhite.copy(alpha = 0.3f),
+                            fontFamily = TitsFontFamily,
+                            fontSize = 13.sp
+                        )
+                    },
+                    textStyle = TextStyle(
+                        fontFamily = TitsFontFamily,
+                        fontSize = 14.sp
+                    ),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = colorBackground,
+                        unfocusedContainerColor = colorBackground,
+                        focusedTextColor = colorTextBodyWhite,
+                        unfocusedTextColor = colorTextBodyWhite,
+                        focusedIndicatorColor = colorTextBrightNeon,
+                        unfocusedIndicatorColor = colorBorderActive
+                    ),
+                    shape = RoundedCornerShape(4.dp),
+                    singleLine = true
+                )
+                
+                Spacer(modifier = Modifier.width(8.dp))
+                
+                Button(
+                    onClick = {
+                        viewModel.sendMessage(userInput)
+                        userInput = ""
+                    },
+                    enabled = !isLoading && userInput.trim().isNotEmpty(),
+                    modifier = Modifier.height(50.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colorMenuBackground,
+                        contentColor = colorTextBrightNeon,
+                        disabledContainerColor = colorBackground
+                    ),
+                    shape = RoundedCornerShape(4.dp),
+                    border = BorderStroke(1.dp, if (userInput.trim().isNotEmpty()) colorTextBrightNeon else colorBorderActive)
+                ) {
+                    Text(
+                        text = "Send", 
+                        fontFamily = TitsFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        color = if (userInput.trim().isNotEmpty()) colorTextBrightNeon else Color.Gray
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ChatMessageBubble(
+    message: UIChatMessage,
+    fontFamily: FontFamily,
+    bodyColor: Color,
+    systemColor: Color,
+    panelColor: Color,
+    borderColor: Color
+) {
     val isUserMessage = message.role == "user"
     
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp),
+            .padding(horizontal = 4.dp),
         horizontalArrangement = if (isUserMessage) Arrangement.End else Arrangement.Start
     ) {
         Surface(
             modifier = Modifier
-                .widthIn(max = 300.dp)
-                .padding(4.dp),
-            color = when (message.role) {
-                "user" -> Color(0xFF0F3460)
-                "dungeon" -> Color(0xFF1B4965)
-                else -> Color(0xFF8B0000)
-            },
-            shape = RoundedCornerShape(12.dp)
+                .widthIn(max = 320.dp),
+            // User gets a structured capsule panel; Dungeon narration presents as direct log output text
+            color = if (isUserMessage) panelColor else Color.Transparent,
+            shape = RoundedCornerShape(4.dp),
+            border = if (isUserMessage) BorderStroke(1.dp, borderColor) else null
         ) {
             Text(
                 text = message.content,
-                modifier = Modifier.padding(12.dp),
-                color = when (message.role) {
-                    "user" -> Color(0xFFFFFFFF)
-                    "dungeon" -> Color(0xFFD4AF37)
-                    else -> Color(0xFFFF6B6B)
-                },
-                fontSize = 13.sp,
-                lineHeight = 18.sp
+                modifier = Modifier.padding(if (isUserMessage) 12.dp else 4.dp),
+                color = if (isUserMessage) bodyColor else systemColor,
+                fontFamily = fontFamily,
+                fontSize = 14.sp,
+                lineHeight = 20.sp
             )
         }
     }
 }
+
