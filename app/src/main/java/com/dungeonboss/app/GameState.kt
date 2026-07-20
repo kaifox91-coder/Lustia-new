@@ -6,7 +6,7 @@ import android.content.SharedPreferences
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 
-class GameState(context: Context) {
+class GameState(private val context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("dungeon_boss_game", Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true }
     
@@ -29,9 +29,44 @@ class GameState(context: Context) {
         val jsonStr = json.encodeToString(gameData)
         prefs.edit {
             putString("game_data", jsonStr)
+            
+            // If the character has a name, automatically back it up in their own profile slot
+            if (gameData.boss.name.isNotEmpty()) {
+                val slotKey = "slot_${gameData.boss.name.replace(Regex("[^a-zA-Z0-9]"), "_")}"
+                putString(slotKey, jsonStr)
+                
+                // Track this name in our master list of saved characters
+                val existingList = getAvailableSaves().toMutableSet()
+                existingList.add(gameData.boss.name)
+                putStringSet("saved_character_names_list", existingList)
+            }
         }
     }
 
+    // 📱 CALL THIS TO LOAD A SPECIFIC CHARACTER PROFILE FROM DISK
+    fun loadCharacterProfile(bossName: String): Boolean {
+        val slotKey = "slot_${bossName.replace(Regex("[^a-zA-Z0-9]"), "_")}"
+        val jsonStr = prefs.getString(slotKey, null)
+        return if (jsonStr != null) {
+            try {
+                gameData = json.decodeFromString<GameData>(jsonStr)
+                prefs.edit { putString("game_data", jsonStr) } // Set as active game
+                true
+            } catch (e: Exception) {
+                false
+            }
+        } else {
+            false
+        }
+    }
+
+    // Returns a list of all existing character profile slots sitting on the phone
+    fun getAvailableSaves(): List<String> {
+        val namesSet = prefs.getStringSet("saved_character_names_list", emptySet()) ?: emptySet()
+        return namesSet.toList()
+    }
+
+    // --- YOUR EXISTING GAME LOGIC CODE REMEDIES UNTOUCHED ---
     fun updateBoss(boss: Boss) {
         gameData = gameData.copy(boss = boss)
         saveGame()
