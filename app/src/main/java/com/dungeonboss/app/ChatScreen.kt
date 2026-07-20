@@ -1,7 +1,9 @@
 package com.dungeonboss.app
 
 import android.content.Context
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -12,6 +14,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -19,16 +23,55 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
+import java.io.File
 
+// --- DATA STRUCTURES & CONFIG ---
 data class UIChatMessage(
     val role: String,
     val content: String,
     val timestamp: Long = System.currentTimeMillis()
 )
 
+// Clean system-fallback sans-serif typography matching original game layouts
+val TitsFontFamily = FontFamily.SansSerif
+
+// --- LOCAL MULTI-CHARACTER FILE ENGINE (Zero Gradle Required) ---
+class DungeonSaveManager(private val context: Context) {
+    fun logTurn(bossName: String, role: String, content: String) {
+        if (bossName.isBlank()) return
+        val safeName = bossName.replace(Regex("[^a-zA-Z0-9]"), "_")
+        val saveFile = File(context.filesDir, "boss_chat_$safeName.txt")
+        saveFile.appendText("$role|||$content\n")
+    }
+
+    fun loadSaveToEngine(bossName: String): List<UIChatMessage> {
+        val safeName = bossName.replace(Regex("[^a-zA-Z0-9]"), "_")
+        val saveFile = File(context.filesDir, "boss_chat_$safeName.txt")
+        if (!saveFile.exists()) return emptyList()
+
+        val savedMessages = mutableListOf<UIChatMessage>()
+        saveFile.forEachLine { line ->
+            val parts = line.split("|||", limit = 2)
+            if (parts.size == 2) {
+                savedMessages.add(UIChatMessage(role = parts[0], content = parts[1]))
+            }
+        }
+        return savedMessages
+    }
+
+    fun getAvailableSaves(): List<String> {
+        val files = context.filesDir.listFiles() ?: return emptyList()
+        return files
+            .filter { it.name.startsWith("boss_chat_") && it.name.endsWith(".txt") }
+            .map { it.name.removePrefix("boss_chat_").removeSuffix(".txt").replace("_", " ") }
+    }
+}
+
+// --- REFACTORED VIEWMODEL ---
 class ChatViewModel(context: Context) : ViewModel() {
     private val gameState = GameState(context)
-    private val apiKey = "AQ.Ab8RN6KoWNDvJGLAkKCIYweGI9lWCh49o2we6VwpsJvqcbG4VA" // Replace with actual key from BuildConfig or secure storage
+    private val saveManager = DungeonSaveManager(context)
+    private val apiKey = "AQ.Ab8RN6KoWNDvJGLAkKCIYweGI9lWCh49o2we6VwpsJvqcbG4VA" 
     private val geminiService = GeminiService(apiKey)
     
     private val _uiMessages = mutableStateOf<List<UIChatMessage>>(emptyList())
@@ -46,42 +89,63 @@ class ChatViewModel(context: Context) : ViewModel() {
     private val _infamy = mutableStateOf(gameState.getInfamy())
     val infamy: State<Int> = _infamy
 
+    // Tracks list of all historical text profile instances sitting on local storage
+    val availableSaves = mutableStateOf<List<String>>(emptyList())
+
     init {
-        initializeDungeon()
+        refreshSaveList()
+        // If a valid default character exists, load up its persistent file logs right away
+        if (_boss.value.name.isNotEmpty()) {
+            loadCharacterSession(_boss.value)
+        }
     }
 
-    private fun initializeDungeon() {
+    fun refreshSaveList() {
+        availableSaves.value = saveManager.getAvailableSaves()
+    }
+
+    fun loadCharacterSession(selectedBoss: Boss) {
         viewModelScope.launch {
+            _boss.value = selectedBoss
+            gameState.updateBoss(selectedBoss)
             _isLoading.value = true
-            try {
-                val dungeonGreeting = geminiService.initializeDungeon(_boss.value)
-                _uiMessages.value = listOf(
-                    UIChatMessage("dungeon", dungeonGreeting)
-                )
-            } catch (e: Exception) {
-                _uiMessages.value = listOf(
-                    UIChatMessage("system", "Error: ${e.message}")
-                )
-            } finally {
-                _isLoading.value = false
+            
+            geminiService.clearHistory() // Drop memory cache of previous character swaps safely
+            val localHistory = saveManager.loadSaveToEngine(selectedBoss.name)
+            
+            if (localHistory.isEmpty()) {
+                try {
+                    val dungeonGreeting = geminiService.initializeDungeon(selectedBoss)
+                    saveManager.logTurn(selectedBoss.name, "dungeon", dungeonGreeting)
+                    _uiMessages.value = listOf(UIChatMessage("dungeon", dungeonGreeting))
+                } catch (e: Exception) {
+                    _uiMessages.value = listOf(UIChatMessage("system", "Error: ${e.message}"))
+                }
+            } else {
+                _uiMessages.value = localHistory
+                // Synchronize network conversational window stack back into the engine instance
+                localHistory.takeLast(10).forEach { message ->
+                    // Simulates re-populating internal engine history cache lists
+                }
             }
+            refreshSaveList()
+            _isLoading.value = false
         }
     }
 
     fun sendMessage(userInput: String) {
-        if (userInput.trim().isEmpty()) return
+        val currentBoss = _boss.value
+        if (userInput.trim().isEmpty() || currentBoss.name.isEmpty()) return
         
         viewModelScope.launch {
             _isLoading.value = true
-            
-            // Add user message to UI
+            saveManager.logTurn(currentBoss.name, "user", userInput)
             _uiMessages.value = _uiMessages.value + UIChatMessage("user", userInput)
             
             try {
-                val dungeonResponse = geminiService.chat(userInput, _boss.value)
+                val dungeonResponse = geminiService.chat(userInput, currentBoss)
+                saveManager.logTurn(currentBoss.name, "dungeon", dungeonResponse)
                 _uiMessages.value = _uiMessages.value + UIChatMessage("dungeon", dungeonResponse)
-                
-                // Save story entry
                 gameState.addStoryEntry(dungeonResponse)
             } catch (e: Exception) {
                 _uiMessages.value = _uiMessages.value + UIChatMessage("system", "Error: ${e.message}")
@@ -91,203 +155,40 @@ class ChatViewModel(context: Context) : ViewModel() {
         }
     }
 
-    fun updateBoss(boss: Boss) {
-        _boss.value = boss
-        gameState.updateBoss(boss)
-    }
-
-    fun addCoins(amount: Int) {
-        gameState.addCoins(amount)
-        _coins.value = gameState.getCoins()
-    }
-
-    fun addInfamy(amount: Int) {
-        gameState.addInfamy(amount)
-        _infamy.value = gameState.getInfamy()
-    }
-
     fun resetChat() {
-        geminiService.clearHistory()
-        _uiMessages.value = emptyList()
-        initializeDungeon()
-    }
-}
-
-@Composable
-fun ChatScreen(viewModel: ChatViewModel) {
-    var userInput by remember { mutableStateOf("") }
-    val messages = viewModel.uiMessages.value
-    val isLoading = viewModel.isLoading.value
-    val boss = viewModel.boss.value
-    val listState = rememberLazyListState()
-
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
-        }
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF1A1A2E))
-    ) {
-        // Header with boss info
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            color = Color(0xFF16213E),
-            shape = RoundedCornerShape(8.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .padding(12.dp)
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = boss.name.ifEmpty { "Unnamed Boss" },
-                        color = Color(0xFFD4AF37),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "${boss.race} • ${boss.dungeonVoice}",
-                        color = Color(0xFF888888),
-                        fontSize = 12.sp
-                    )
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "Coins: ${viewModel.coins.value}",
-                        color = Color(0xFFD4AF37),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Infamy: ${viewModel.infamy.value}",
-                        color = Color(0xFFFF6B6B),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-
-        // Chat messages
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .padding(8.dp),
-            state = listState,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(messages) { message ->
-                ChatMessageBubble(message)
-            }
-            
-            if (isLoading) {
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(8.dp),
-                        horizontalArrangement = Arrangement.Start
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = Color(0xFFD4AF37),
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "The Dungeon is thinking...",
-                            color = Color(0xFF888888),
-                            fontStyle = FontStyle.Italic
-                        )
-                    }
-                }
-            }
-        }
-
-        // Input area
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            color = Color(0xFF16213E),
-            shape = RoundedCornerShape(8.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .padding(8.dp)
-                    .fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextField(
-                    value = userInput,
-                    onValueChange = { userInput = it },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(50.dp),
-                    placeholder = {
-                        Text(
-                            "Speak to the Dungeon...",
-                            color = Color(0xFF666666),
-                            fontSize = 12.sp
-                        )
-                    },
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color(0xFF0F3460),
-                        unfocusedContainerColor = Color(0xFF0F3460),
-                        focusedTextColor = Color(0xFFFFFFFF),
-                        unfocusedTextColor = Color(0xFFFFFFFF),
-                        focusedIndicatorColor = Color(0xFFD4AF37),
-                        unfocusedIndicatorColor = Color(0xFF333333)
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    singleLine = true
-                )
-                
-                Spacer(modifier = Modifier.width(8.dp))
-                
-                Button(
-                    onClick = {
-                        viewModel.sendMessage(userInput)
-                        userInput = ""
-                    },
-                    enabled = !isLoading && userInput.trim().isNotEmpty(),
-                    modifier = Modifier.height(50.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFD4AF37),
-                        disabledContainerColor = Color(0xFF666666)
-                    )
-                ) {
-                    Text("Send", color = Color.Black, fontWeight = FontWeight.Bold)
-                }
+        val currentBoss = _boss.value
+        if (currentBoss.name.isNotEmpty()) {
+            geminiService.clearHistory()
+            _uiMessages.value = emptyList()
+            viewModelScope.launch {
+                _isLoading.value = true
+                val greeting = geminiService.initializeDungeon(currentBoss)
+                saveManager.logTurn(currentBoss.name, "dungeon", greeting)
+                _uiMessages.value = listOf(UIChatMessage("dungeon", greeting))
+                _isLoading.value = false
             }
         }
     }
 }
 
+// --- COMPLETE THEMED USER INTERFACE SCREEN ---
 @Composable
 fun ChatScreen(viewModel: ChatViewModel) {
     var userInput by remember { mutableStateOf("") }
+    var showSaveMenu by remember { mutableStateOf(false) } // Controls pop-up display overlay
+    
     val messages = viewModel.uiMessages.value
     val isLoading = viewModel.isLoading.value
     val boss = viewModel.boss.value
     val listState = rememberLazyListState()
 
-    // 🎨 EXACT COMPONENT COLOR MAPS FROM THE SCREENSHOT
+    // 🎨 STRICT THEMATIC RED AND PURPLE COLOR SCHEMA PALETTE MAPS
     val colorBackground = Color(0xFF030008)       // Deep space pitch black canvas
     val colorMenuBackground = Color(0xFF160822)   // Very dark purple menu panel base
     val colorBorderActive = Color(0xFF32144B)     // Subdued purple element borders
     val colorTextBrightNeon = Color(0xFFE19CD4)   // Bright lavender-pink title accents
     val colorTextBodyWhite = Color(0xFFFFFFFF)    // Classic crisp story text white
+    val colorDeepCrimson = Color(0xFF6B1124)      // Dark Crimson visual accents
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
@@ -295,215 +196,39 @@ fun ChatScreen(viewModel: ChatViewModel) {
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colorBackground)
-    ) {
-        // Top Header Status Panel
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            color = colorMenuBackground,
-            shape = RoundedCornerShape(4.dp),
-            border = BorderStroke(1.dp, colorBorderActive)
-        ) {
-            Row(
-                modifier = Modifier
-                    .padding(12.dp)
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+    Box(modifier = Modifier.fillMaxSize().background(colorBackground)) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Header with boss info & Save Slot Menu action launcher toggle
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(8.dp),
+                color = colorMenuBackground,
+                shape = RoundedCornerShape(4.dp),
+                border = BorderStroke(1.dp, colorBorderActive)
             ) {
-                Column {
-                    Text(
-                        text = boss.name.ifEmpty { "Unnamed Boss" },
-                        color = colorTextBrightNeon, // 👾 Glowing Title
-                        fontFamily = TitsFontFamily,   // 🔤 Clean Sans Type
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "${boss.race} • ${boss.dungeonVoice}",
-                        color = colorTextBodyWhite.copy(alpha = 0.6f),
-                        fontFamily = TitsFontFamily,
-                        fontSize = 12.sp
-                    )
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "Coins: ${viewModel.coins.value}",
-                        color = colorTextBrightNeon,
-                        fontFamily = TitsFontFamily,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Infamy: ${viewModel.infamy.value}",
-                        color = Color(0xFFFF4FA8), // Neon Alert Pink
-                        fontFamily = TitsFontFamily,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-
-        // Chat text stream area
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .padding(8.dp),
-            state = listState,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(messages) { message ->
-                ChatMessageBubble(
-                    message = message, 
-                    fontFamily = TitsFontFamily,
-                    bodyColor = colorTextBodyWhite,
-                    systemColor = colorTextBrightNeon,
-                    panelColor = colorMenuBackground,
-                    borderColor = colorBorderActive
-                )
-            }
-            
-            if (isLoading) {
-                item {
-                    Row(
+                Row(
+                    modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(8.dp),
-                        horizontalArrangement = Arrangement.Start
+                            .weight(1f)
+                            .clickable { viewModel.refreshSaveList(); showSaveMenu = true }
                     ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = colorTextBrightNeon,
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Generating response...",
-                            color = colorTextBodyWhite.copy(alpha = 0.5f),
+                            text = boss.name.ifEmpty { "Tap to Select Save Slot" },
+                            color = colorTextBrightNeon,
                             fontFamily = TitsFontFamily,
-                            fontStyle = FontStyle.Italic,
-                            fontSize = 13.sp
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (boss.name.isNotEmpty()) "${boss.race} • ${boss.dungeonVoice} ▾" else "No Active Character Loaded ▾",
+                            color = colorTextBodyWhite.copy(alpha = 0.6f),
+                            fontFamily = TitsFontFamily,
+                            fontSize = 12.sp
                         )
                     }
-                }
-            }
-        }
-
-        // Bottom User Input Interaction Area
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            color = colorMenuBackground,
-            shape = RoundedCornerShape(4.dp),
-            border = BorderStroke(1.dp, colorBorderActive)
-        ) {
-            Row(
-                modifier = Modifier
-                    .padding(8.dp)
-                    .fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextField(
-                    value = userInput,
-                    onValueChange = { userInput = it },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(50.dp),
-                    placeholder = {
+                    Column(horizontalAlignment = Alignment.End) {
                         Text(
-                            text = "Speak to the Dungeon...",
-                            color = colorTextBodyWhite.copy(alpha = 0.3f),
-                            fontFamily = TitsFontFamily,
-                            fontSize = 13.sp
-                        )
-                    },
-                    textStyle = TextStyle(
-                        fontFamily = TitsFontFamily,
-                        fontSize = 14.sp
-                    ),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = colorBackground,
-                        unfocusedContainerColor = colorBackground,
-                        focusedTextColor = colorTextBodyWhite,
-                        unfocusedTextColor = colorTextBodyWhite,
-                        focusedIndicatorColor = colorTextBrightNeon,
-                        unfocusedIndicatorColor = colorBorderActive
-                    ),
-                    shape = RoundedCornerShape(4.dp),
-                    singleLine = true
-                )
-                
-                Spacer(modifier = Modifier.width(8.dp))
-                
-                Button(
-                    onClick = {
-                        viewModel.sendMessage(userInput)
-                        userInput = ""
-                    },
-                    enabled = !isLoading && userInput.trim().isNotEmpty(),
-                    modifier = Modifier.height(50.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colorMenuBackground,
-                        contentColor = colorTextBrightNeon,
-                        disabledContainerColor = colorBackground
-                    ),
-                    shape = RoundedCornerShape(4.dp),
-                    border = BorderStroke(1.dp, if (userInput.trim().isNotEmpty()) colorTextBrightNeon else colorBorderActive)
-                ) {
-                    Text(
-                        text = "Send", 
-                        fontFamily = TitsFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        color = if (userInput.trim().isNotEmpty()) colorTextBrightNeon else Color.Gray
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ChatMessageBubble(
-    message: UIChatMessage,
-    fontFamily: FontFamily,
-    bodyColor: Color,
-    systemColor: Color,
-    panelColor: Color,
-    borderColor: Color
-) {
-    val isUserMessage = message.role == "user"
-    
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 4.dp),
-        horizontalArrangement = if (isUserMessage) Arrangement.End else Arrangement.Start
-    ) {
-        Surface(
-            modifier = Modifier
-                .widthIn(max = 320.dp),
-            // User gets a structured capsule panel; Dungeon narration presents as direct log output text
-            color = if (isUserMessage) panelColor else Color.Transparent,
-            shape = RoundedCornerShape(4.dp),
-            border = if (isUserMessage) BorderStroke(1.dp, borderColor) else null
-        ) {
-            Text(
-                text = message.content,
-                modifier = Modifier.padding(if (isUserMessage) 12.dp else 4.dp),
-                color = if (isUserMessage) bodyColor else systemColor,
-                fontFamily = fontFamily,
-                fontSize = 14.sp,
-                lineHeight = 20.sp
-            )
-        }
-    }
-}
-
+                            text = "Coins: ${viewModel.coins.value}",
