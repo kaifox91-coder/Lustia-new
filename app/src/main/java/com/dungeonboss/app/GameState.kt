@@ -104,7 +104,7 @@ class GameState(private val context: Context) {
     }
 
     fun addStoryEntry(entry: String) {
-        val entries = gameData.storyLog.takeLast(6) + entry
+        val entries = gameData.storyLog.takeLast(11) + entry
         gameData = gameData.copy(storyLog = entries, lastUpdated = System.currentTimeMillis())
         saveGame()
     }
