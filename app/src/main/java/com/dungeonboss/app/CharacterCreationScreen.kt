@@ -180,53 +180,54 @@ fun CharacterCreationScreen(
                 }
             } else {
                 Button(
-                    onClick = {
-                        val boss = Boss(
-                            name = name,
-                            race = race,
-                            age = age.toIntOrNull() ?: 0,
-                            height = height,
-                            gender = gender,
-                            appearance = appearance,
-                            setting = setting,
-                            floorTheme = floorTheme,
-                            bosspower = bosspower,
-                            skills = listOf(skill1, skill2, skill3).filter { it.isNotEmpty() },
-                            techniques = listOf(technique1, technique2, technique3).filter { it.isNotEmpty() },
-                            spells = listOf(spell1, spell2, spell3).filter { it.isNotEmpty() },
-                            stats = BossStats(
-                                size = size,
-                                physique = physique,
-                                resilience = resilience,
-                                willpower = willpower,
-                                speed = speed,
-                                agility = agility,
-                                reflexes = reflexes,
-                                weaponHandling = weaponHandling,
-                                tactics = tactics,
-                                aim = aim,
-                                charisma = charisma,
-                                deception = deception,
-                                seduction = seduction,
-                                manipulation = manipulation,
-                                trapCraft = trapCraft,
-                                floorKnowledge = floorKnowledge,
-                                minionCommand = minionCommand,
-                                arcana = arcana,
-                                manaSurge = manaSurge
-                            ),
-                            dungeonVoice = dungeonVoice
-                        )
-                        gameState.updateBoss(boss)
-                        gameState.setCreationStep(0)
-                        onCreationComplete(boss)
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF4CAF50)
-                    )
-                ) {
-                    Text("COMPLETE", color = Color.White, fontWeight = FontWeight.Bold)
-                }
+    onClick = {
+        val boss = Boss(
+            name = name,
+            race = race,
+            age = age.toIntOrNull() ?: 0,
+            height = height,
+            gender = gender,
+            appearance = appearance,
+            setting = setting,
+            floorTheme = floorTheme,
+            bosspower = bosspower,
+            skills = listOf(skill1, skill2, skill3).filter { it.isNotEmpty() },
+            techniques = listOf(technique1, technique2, technique3).filter { it.isNotEmpty() },
+            spells = listOf(spell1, spell2, spell3).filter { it.isNotEmpty() },
+            stats = BossStats(
+                size = size,
+                physique = physique,
+                resilience = resilience,
+                willpower = willpower,
+                speed = speed,
+                agility = agility,
+                reflexes = reflexes,
+                weaponHandling = weaponHandling,
+                tactics = tactics,
+                aim = aim,
+                charisma = charisma,
+                deception = deception,
+                seduction = seduction,
+                manipulation = manipulation,
+                trapCraft = trapCraft,
+                floorKnowledge = floorKnowledge,
+                minionCommand = minionCommand,
+                arcana = arcana,
+                manaSurge = manaSurge
+            ),
+            dungeonVoice = dungeonVoice
+        )
+        gameState.updateBoss(boss)
+        gameState.setCreationStep(0)
+        onCreationComplete(boss)
+    },
+    colors = ButtonDefaults.buttonColors(
+        containerColor = Color(0xFF6B1124) // 🔮 Updated to your deep crimson layout color!
+    )
+) {
+    Text("COMPLETE", color = Color.White, fontWeight = FontWeight.Bold)
+}
+
             }
         }
     }
