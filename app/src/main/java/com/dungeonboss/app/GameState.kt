@@ -1,11 +1,8 @@
 package com.dungeonboss.app
 
-import android.content.Context
-import androidx.core.content.edit
-import android.content.SharedPreferences
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-import java.util.Calendar
+import org.json.JSONArray
+import org.json.JSONObject
 
 @Serializable
 data class BossStats(
@@ -32,8 +29,72 @@ data class BossStats(
 
 @Serializable
 data class Boss(
-    val name: String = "",
+    // Combat Tracking Properties
+    val id: String = "boss",
+    val defense: Int = 0,
+    val abilities: List<String> = emptyList(),
+    val legendaryActions: Int = 0,
+    val customRules: List<String> = emptyList(),
+    
+    // Core RPG Properties
+    val name: String = "Unnamed Boss",
     val race: String = "",
+    val age: Int = 0,
+    val height: String = "",
+    val gender: String = "",
+    val appearance: String = "",
+    val setting: String = "",
+    val floorTheme: String = "",
+    val bosspower: String = "",
+    val skills: List<String> = listOf(),
+    val techniques: List<String> = listOf(),
+    val spells: List<String> = listOf(),
+    val stats: BossStats = BossStats(),
+    val hp: Int = 100,
+    val maxHp: Int = 100,
+    val stamina: Int = 100,
+    val maxStamina: Int = 100,
+    val mana: Int = 100,
+    val maxMana: Int = 100,
+    val dungeonVoice: String = "Chronicle"
+) {
+    // Keeps your original JSON fallback compatible for combat nodes
+    fun toJson(): JSONObject {
+        val j = JSONObject()
+        j.put("id", id)
+        j.put("name", name)
+        j.put("hp", hp)
+        j.put("maxHp", maxHp)
+        j.put("defense", defense)
+        j.put("abilities", JSONArray(abilities))
+        j.put("legendaryActions", legendaryActions)
+        j.put("customRules", JSONArray(customRules))
+        return j
+    }
+
+    companion object {
+        fun fromJson(j: JSONObject): Boss {
+            val abilities = j.optJSONArray("abilities")?.let { arr ->
+                List(arr.length()) { i -> arr.optString(i) }
+            } ?: emptyList()
+
+            val customRules = j.optJSONArray("customRules")?.let { arr ->
+                List(arr.length()) { i -> arr.optString(i) }
+            } ?: emptyList()
+
+            return Boss(
+                id = j.optString("id", "boss"),
+                name = j.optString("name", "Unnamed Boss"),
+                hp = j.optInt("hp", 100),
+                maxHp = j.optInt("maxHp", j.optInt("hp", 100)),
+                defense = j.optInt("defense", 0),
+                abilities = abilities,
+                legendaryActions = j.optInt("legendaryActions", 0),
+                customRules = customRules
+            )
+        }
+    }
+}
     val age: Int = 0,
     val height: String = "",
     val gender: String = "",
