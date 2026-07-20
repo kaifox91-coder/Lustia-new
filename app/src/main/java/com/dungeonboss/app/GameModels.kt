@@ -25,5 +25,5 @@ data class GameData(
     val storyLog: List<String> = emptyList(),
     val creationStep: Int = 0,
     val bonds: Map<String, Int> = emptyMap(),
-    val lastUpdated: Long = 0L
+    val lastUpdated: Long = System.currentTimeMillis()
 )
