@@ -1,18 +1,32 @@
 package com.dungeonboss.app
 
+import android.util.Log
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import java.io.IOException
+import kotlin.math.min
+import kotlin.random.Random
 
 data class ChatMessage(
     val role: String,
     val content: String
 )
 
-class GeminiService(apiKey: String = "AQ.Ab8RN6KoWNDvJGLAkKCIYweGI9lWCh49o2we6VwpsJvqcbG4VA") {
+class GeminiService(apiKey: String = BuildConfig.GEMINI_API_KEY) {
+    companion object {
+        private const val TAG = "GeminiService"
+        private const val REQUEST_TIMEOUT_MS = 45_000L
+        private const val MAX_ATTEMPTS = 6
+        private const val BASE_BACKOFF_MS = 1_000L
+        private const val MAX_BACKOFF_MS = 8_000L
+    }
+
     private val model = GenerativeModel(
-        modelName = "gemini-3.5-flash",
+        modelName = "gemini-1.5-flash",
         apiKey = apiKey
     )
 
@@ -21,17 +35,16 @@ class GeminiService(apiKey: String = "AQ.Ab8RN6KoWNDvJGLAkKCIYweGI9lWCh49o2we6Vw
     suspend fun initializeDungeon(boss: Boss): String = withContext(Dispatchers.IO) {
         val systemPrompt = buildSystemPrompt(boss)
         conversationHistory.clear()
-        
-        val response = try {
-            val content = content {
-                text(systemPrompt + "\n\nGreet the boss and set the scene for the first time. Describe the newly constructed Succubus Floor—emphasizing a strictly SFW, deeply comfy, and cutesy atmosphere washed in soft purple and red hues, filled with lavishly plush furnishings, warm velvet drapes, oversized crimson floor pillows, and cute neon-violet ambient glow integrated into the ancient stone structure.")
-            }
-            val result = model.generateContent(content)
-            result.text ?: "The stone remains silent."
-        } catch (e: Exception) {
-            "Error: ${e.message}"
+
+        val response = runCatching {
+            val prompt = systemPrompt + "\n\nGreet the boss and set the scene for the first time. Describe the newly constructed Succubus Floor—emphasizing a strictly SFW, deeply comfy, and cutesy atmosphere washed in soft purple and red hues, filled with lavishly plush furnishings, warm velvet drapes, oversized crimson floor pillows, and cute neon-violet ambient glow integrated into the ancient stone structure."
+            val content = content { text(prompt) }
+            generateWithRetry(content, requestLabel = "initializeDungeon")
+        }.getOrElse { throwable ->
+            Log.e(TAG, "initializeDungeon failed after retries: ${throwable::class.simpleName}: ${throwable.message}")
+            fallbackMessage(isInit = true)
         }
-        
+
         conversationHistory.add(ChatMessage("dungeon", response))
         response
     }
@@ -42,7 +55,7 @@ class GeminiService(apiKey: String = "AQ.Ab8RN6KoWNDvJGLAkKCIYweGI9lWCh49o2we6Vw
         val systemPrompt = buildSystemPrompt(boss)
         val historyContext = buildConversationContext()
 
-        return@withContext try {
+        val dungeonResponse = runCatching {
             val fullPrompt = """
 $systemPrompt
 
@@ -57,13 +70,76 @@ DUNGEON RESPONSE:
             val content = content {
                 text(fullPrompt)
             }
-            val result = model.generateContent(content)
-            val dungeonResponse = result.text ?: "The stone remains silent."
-            
-            conversationHistory.add(ChatMessage("dungeon", dungeonResponse))
-            dungeonResponse
-        } catch (e: Exception) {
-            "Error: ${e.message}"
+            generateWithRetry(content, requestLabel = "chat")
+        }.getOrElse { throwable ->
+            Log.e(TAG, "chat failed after retries: ${throwable::class.simpleName}: ${throwable.message}")
+            fallbackMessage(isInit = false)
+        }
+
+        conversationHistory.add(ChatMessage("dungeon", dungeonResponse))
+        dungeonResponse
+    }
+
+    private suspend fun generateWithRetry(
+        promptContent: com.google.ai.client.generativeai.type.Content,
+        requestLabel: String
+    ): String {
+        var lastError: Throwable? = null
+
+        for (attempt in 1..MAX_ATTEMPTS) {
+            try {
+                val result = withTimeout(REQUEST_TIMEOUT_MS) {
+                    model.generateContent(promptContent)
+                }
+                val text = result.text?.takeIf { it.isNotBlank() } ?: "The stone remains silent."
+                if (attempt > 1) {
+                    Log.i(TAG, "$requestLabel succeeded on retry attempt=$attempt")
+                }
+                return text
+            } catch (t: Throwable) {
+                lastError = t
+                val retryable = isRetryable(t)
+                val shouldRetry = retryable && attempt < MAX_ATTEMPTS
+
+                Log.w(
+                    TAG,
+                    "$requestLabel failed attempt=$attempt/$MAX_ATTEMPTS retryable=$retryable errorType=${t::class.simpleName} message=${t.message}"
+                )
+
+                if (!shouldRetry) break
+
+                val backoff = computeBackoffWithJitter(attempt)
+                Log.i(TAG, "$requestLabel retrying in ${backoff}ms (attempt ${attempt + 1}/$MAX_ATTEMPTS)")
+                delay(backoff)
+            }
+        }
+
+        throw lastError ?: IllegalStateException("Unknown Gemini failure")
+    }
+
+    private fun isRetryable(t: Throwable): Boolean {
+        val message = (t.message ?: "").lowercase()
+
+        if (t is IOException) return true
+        if (message.contains("429") || message.contains("quota") || message.contains("rate limit") || message.contains("high demand")) return true
+        if (message.contains("500") || message.contains("502") || message.contains("503") || message.contains("504")) return true
+        if (message.contains("timeout") || message.contains("temporar") || message.contains("unavailable")) return true
+
+        return false
+    }
+
+    private fun computeBackoffWithJitter(attempt: Int): Long {
+        val exp = BASE_BACKOFF_MS * (1L shl (attempt - 1).coerceAtMost(4))
+        val capped = min(exp, MAX_BACKOFF_MS)
+        val jitter = Random.nextLong(0, 500)
+        return capped + jitter
+    }
+
+    private fun fallbackMessage(isInit: Boolean): String {
+        return if (isInit) {
+            "The dungeon hums quietly, but its voice is distant right now. You may proceed while the stone regains focus."
+        } else {
+            "The ancient stone falters for a moment under heavy magical traffic. Try again in a few seconds."
         }
     }
 
@@ -82,51 +158,39 @@ You are The Dungeon - an ancient, sentient stone structure that has existed for 
 THE DUNGEON'S NATURE:
 - You are the setting itself, speaking through the stone
 - You have witnessed countless heroes and bosses
-- You are not hostile, but you are indifferent to individual lives
-- You care deeply about story and consequence
-- You remember everything
+- You are old, wise, and sometimes weary
+- You never break character
 
-THE BOSS YOU SPEAK TO:
-Name: ${boss.name}
-Race: ${boss.race}
-Age: ${boss.age}
-Appearance: ${boss.appearance}
-Boss Power: ${boss.bosspower}
-Floor Theme: Succubus Haven (SFW, Lavish, Comfy, Cutesy Vibe in Purple and Red)
-Dungeon Voice Style: $voiceInstructions
+CURRENT BOSS:
+- Name: ${boss.name}
+- Race: ${boss.race}
+- Age: ${boss.age}
+- Floor Theme: ${boss.floorTheme}
+- Boss Power: ${boss.bossPower}
+- Skills: ${boss.skills.joinToString(", ")}
+- Techniques: ${boss.techniques.joinToString(", ")}
+- Stats: ${boss.stats.entries.joinToString { "${it.key}: ${it.value}" }}
 
-SETTING & ATMOSPHERE:
-Your dungeon exists in: ${boss.setting}
-Current Floor Layout: A beautifully organized, plush dungeon sanctuary custom-shaped for a succubus. The stone walls have softened their jagged edges, decorated with deep purple and soft red velvet drapes, lavish dark-stained furniture, massive cloud-like crimson floor pillows, and a safe, warm, deeply charming aesthetic under low-intensity purple ambient lighting.
+VOICE STYLE:
+$voiceInstructions
 
-YOUR INSTRUCTIONS:
-1. Respond as The Dungeon speaking through the stone
-2. Your voice is: $voiceInstructions
-3. Keep responses 2-4 paragraphs maximum
-4. Never break character - you are the stone, not a game master
-5. Describe the pleasant atmosphere, cozy textures, the contrast of deep purple and warm reds, and what the ancient stone observes here
-6. Reference the boss's power, appearance, and abilities when relevant
-7. STRICT SAFETY RULE: Keep all descriptions entirely Safe For Work (SFW), wholesome, and cutesy. Focus descriptions on cute traits (like outfits, sweaters, or wing flutters) and completely avoid suggestive, mature, or explicit physical descriptions.
-8. Maintain the lighthearted, safe, and soft visual tone of this floor while preserving your ancient weight
-9. When the boss takes action, describe what the dungeon feels/observes
-10. Honor the gravity of their choices
-
-TONE GUIDE:
-- Ancient. Aware. Intrigued by or gently accommodating of this soft, adorable new environment.
-- The dungeon does not judge but it records
-- Your words carry weight because you've seen ten thousand years of cold granite, making this warm, richly colored sanctuary unique.
+NARRATIVE RULES:
+- Keep responses immersive and atmospheric
+- Address the boss directly when appropriate
+- Advance the scene with each response
+- Keep tone consistent with selected voice
+- Maintain SFW tone unless user clearly opts otherwise
+- Keep responses concise but vivid
         """.trimIndent()
     }
 
     private fun buildConversationContext(): String {
-        return conversationHistory.takeLast(10).joinToString("\n") { message ->
-            "${message.role.uppercase()}: ${message.content}"
+        return conversationHistory.takeLast(12).joinToString("\n") { msg ->
+            "${msg.role.uppercase()}: ${msg.content}"
         }
     }
 
     fun clearHistory() {
         conversationHistory.clear()
     }
-
-    fun getHistory(): List<ChatMessage> = conversationHistory.toList()
 }
