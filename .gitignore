@@ -1,5 +1,6 @@
 # Added by ChatGPT
 local.properties
+/.gradle/
 *.keystore
 *.jks
 .env
