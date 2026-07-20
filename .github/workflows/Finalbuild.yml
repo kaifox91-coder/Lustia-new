@@ -2,8 +2,16 @@ name: Build Android App Pipeline
 
 on:
   push:
-    branches: [ Main ]
+    branches: [ main ]
   workflow_dispatch:
+
+# API key reference pattern — set GEMINI_API_KEY as a GitHub Actions repository secret.
+# To add the secret: Settings → Secrets and variables → Actions → New repository secret.
+# Name: GEMINI_API_KEY  Value: your key from https://aistudio.google.com/app/apikey
+# If the secret is absent the build proceeds with an empty key (AI features will be disabled).
+env:
+  # Safe reference — resolves to empty string when the secret is not configured.
+  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
 jobs:
   build:
@@ -36,15 +44,29 @@ jobs:
           echo "Scanning all repository text files for hidden clipboard characters..."
           find . -type f -not -path '*/.*' -exec grep -Iq . {} \; -exec sed -i 's/\x00//g' {} +
 
-      - name: Build with local placeholder key file (no workflow secret mapping)
+      - name: Validate API Key Configuration
+        shell: bash
+        run: |
+          if [ -z "${GEMINI_API_KEY}" ]; then
+            echo "::warning::GEMINI_API_KEY is not set. The APK will build successfully but AI chat features will not work at runtime."
+            echo "To enable AI features, add GEMINI_API_KEY as a GitHub Actions secret:"
+            echo "  Repository → Settings → Secrets and variables → Actions → New repository secret"
+            echo "  Name: GEMINI_API_KEY"
+            echo "  Value: your key from https://aistudio.google.com/app/apikey"
+          else
+            echo "GEMINI_API_KEY is configured — AI features will be enabled in this build."
+          fi
+
+      - name: Build with Gradle
         shell: bash
         run: |
           mkdir -p ~/.gradle
 
+          # Write the API key (empty or real) into gradle.properties so Gradle can read it.
           if [ ! -f ~/.gradle/gradle.properties ]; then
-            printf "GEMINI_API_KEY=\n" > ~/.gradle/gradle.properties
+            printf "GEMINI_API_KEY=%s\n" "${GEMINI_API_KEY}" > ~/.gradle/gradle.properties
           elif ! grep -q '^GEMINI_API_KEY=' ~/.gradle/gradle.properties; then
-            printf "\nGEMINI_API_KEY=\n" >> ~/.gradle/gradle.properties
+            printf "\nGEMINI_API_KEY=%s\n" "${GEMINI_API_KEY}" >> ~/.gradle/gradle.properties
           fi
 
           gradle assembleDebug -p "$GITHUB_WORKSPACE" -Pandroid.useAndroidX=true --no-daemon --no-build-cache --stacktrace
