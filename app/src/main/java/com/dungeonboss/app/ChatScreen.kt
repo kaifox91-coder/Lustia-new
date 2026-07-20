@@ -33,19 +33,19 @@ data class UIChatMessage(
 class ChatViewModel(context: Context) : ViewModel() {
     private val gameState = GameState(context)
     private val geminiService = GeminiService(BuildConfig.GEMINI_API_KEY)
-    
+
     private val _uiMessages = mutableStateOf<List<UIChatMessage>>(emptyList())
     val uiMessages: State<List<UIChatMessage>> = _uiMessages
-    
+
     private val _isLoading = mutableStateOf(false)
     val isLoading: State<Boolean> = _isLoading
-    
+
     private val _boss = mutableStateOf(gameState.getBoss())
     val boss: State<Boss> = _boss
-    
+
     private val _coins = mutableStateOf(gameState.getCoins())
     val coins: State<Int> = _coins
-    
+
     private val _infamy = mutableStateOf(gameState.getInfamy())
     val infamy: State<Int> = _infamy
 
@@ -73,7 +73,7 @@ class ChatViewModel(context: Context) : ViewModel() {
             _coins.value = gameState.getCoins()
             _infamy.value = gameState.getInfamy()
             geminiService.clearHistory() // Flush AI memory stack safely
-            
+
             val historicStory = gameState.getStoryLog()
             _uiMessages.value = historicStory.map { UIChatMessage("dungeon", it) }
             refreshSaveList()
@@ -97,11 +97,11 @@ class ChatViewModel(context: Context) : ViewModel() {
 
     fun sendMessage(userInput: String) {
         if (userInput.trim().isEmpty()) return
-        
+
         viewModelScope.launch {
             _isLoading.value = true
             _uiMessages.value = _uiMessages.value + UIChatMessage("user", userInput)
-            
+
             try {
                 val dungeonResponse = geminiService.chat(userInput, _boss.value)
                 _uiMessages.value = _uiMessages.value + UIChatMessage("dungeon", dungeonResponse)
@@ -140,20 +140,21 @@ class ChatViewModel(context: Context) : ViewModel() {
 @Composable
 fun ChatScreen(viewModel: ChatViewModel) {
     var userInput by remember { mutableStateOf("") }
-    var showSaveMenu by remember { mutableStateOf(false) } 
-    
+    var showSaveMenu by remember { mutableStateOf(false) }
+    var showDebugPanel by remember { mutableStateOf(false) }
+
     val messages = viewModel.uiMessages.value
     val isLoading = viewModel.isLoading.value
     val boss = viewModel.boss.value
     val listState = rememberLazyListState()
 
     // 🎨 CENTRAL DESIGN GROUP CONTROLS (Purple and Red Vibe)
-    val colorBackground = Color(0xFF030008)       
-    val colorMenuBackground = Color(0xFF160822)   
-    val colorBorderActive = Color(0xFF32144B)     
-    val colorTextBrightNeon = Color(0xFFE19CD4)   
-    val colorTextBodyWhite = Color(0xFFFFFFFF)    
-    val colorDeepCrimson = Color(0xFF6B1124)      
+    val colorBackground = Color(0xFF030008)
+    val colorMenuBackground = Color(0xFF160822)
+    val colorBorderActive = Color(0xFF32144B)
+    val colorTextBrightNeon = Color(0xFFE19CD4)
+    val colorTextBodyWhite = Color(0xFFFFFFFF)
+    val colorDeepCrimson = Color(0xFF6B1124)
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
@@ -209,6 +210,20 @@ fun ChatScreen(viewModel: ChatViewModel) {
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
+                        if (BuildConfig.DEBUG) {
+                            TextButton(
+                                onClick = { showDebugPanel = true },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                            ) {
+                                Text(
+                                    text = "Debug",
+                                    color = colorTextBrightNeon,
+                                    fontFamily = FontFamily.SansSerif,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -229,7 +244,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
                         borderColor = colorBorderActive
                     )
                 }
-                
+
                 if (isLoading) {
                     item {
                         Row(
@@ -248,7 +263,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
                                 fontFamily = FontFamily.SansSerif,
                                 fontStyle = FontStyle.Italic,
                                 fontSize = 13.sp
-                         )
+                            )
                         }
                     }
                 }
@@ -289,9 +304,9 @@ fun ChatScreen(viewModel: ChatViewModel) {
                         shape = RoundedCornerShape(4.dp),
                         singleLine = true
                     )
-                    
+
                     Spacer(modifier = Modifier.width(8.dp))
-                    
+
                     Button(
                         onClick = {
                             viewModel.sendMessage(userInput)
@@ -308,7 +323,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
                         border = BorderStroke(1.dp, if (userInput.trim().isNotEmpty()) colorTextBrightNeon else colorBorderActive)
                     ) {
                         Text(
-                            text = "Send", 
+                            text = "Send",
                             fontFamily = FontFamily.SansSerif,
                             fontWeight = FontWeight.Bold,
                             color = if (userInput.trim().isNotEmpty()) colorTextBodyWhite else Color.Gray
@@ -366,6 +381,82 @@ fun ChatScreen(viewModel: ChatViewModel) {
                 modifier = Modifier.padding(16.dp)
             )
         }
+
+        if (BuildConfig.DEBUG && showDebugPanel) {
+            DebugPanelDialog(
+                bossName = boss.name,
+                messageCount = messages.size,
+                apiKeyPresent = BuildConfig.GEMINI_API_KEY.isNotBlank(),
+                packageName = BuildConfig.APPLICATION_ID,
+                onDismiss = { showDebugPanel = false },
+                colorMenuBackground = colorMenuBackground,
+                colorTextBrightNeon = colorTextBrightNeon,
+                colorTextBodyWhite = colorTextBodyWhite,
+                colorBorderActive = colorBorderActive
+            )
+        }
+    }
+}
+
+@Composable
+private fun DebugPanelDialog(
+    bossName: String,
+    messageCount: Int,
+    apiKeyPresent: Boolean,
+    packageName: String,
+    onDismiss: () -> Unit,
+    colorMenuBackground: Color,
+    colorTextBrightNeon: Color,
+    colorTextBodyWhite: Color,
+    colorBorderActive: Color
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Debug Panel",
+                color = colorTextBrightNeon,
+                fontFamily = FontFamily.SansSerif,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                DebugRow(label = "Build Type", value = if (BuildConfig.DEBUG) "Debug" else "Release", colorTextBodyWhite)
+                DebugRow(label = "Package", value = packageName, colorTextBodyWhite)
+                DebugRow(label = "Boss", value = bossName.ifBlank { "(none)" }, colorTextBodyWhite)
+                DebugRow(label = "Messages", value = messageCount.toString(), colorTextBodyWhite)
+                DebugRow(label = "Gemini API Key", value = if (apiKeyPresent) "Present" else "Missing", colorTextBodyWhite)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close", color = colorTextBrightNeon, fontFamily = FontFamily.SansSerif)
+            }
+        },
+        containerColor = colorMenuBackground,
+        shape = RoundedCornerShape(4.dp),
+        modifier = Modifier.padding(16.dp)
+    )
+}
+
+@Composable
+private fun DebugRow(label: String, value: String, valueColor: Color) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(
+            text = "$label:",
+            color = valueColor.copy(alpha = 0.7f),
+            fontFamily = FontFamily.SansSerif,
+            fontSize = 13.sp
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = value,
+            color = valueColor,
+            fontFamily = FontFamily.SansSerif,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 13.sp
+        )
     }
 }
 
@@ -379,7 +470,7 @@ fun ChatMessageBubble(
     borderColor: Color
 ) {
     val isUserMessage = message.role == "user"
-    
+
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
         horizontalArrangement = if (isUserMessage) Arrangement.End else Arrangement.Start
