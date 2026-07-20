@@ -30,16 +30,9 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MainScreen(gameState: GameState, chatViewModel: ChatViewModel) {
-    var screenState by remember { mutableStateOf("check") } // "check", "creation", "chat"
-    val boss = gameState.getBoss()
-
-    // Check if boss exists
-    LaunchedEffect(Unit) {
-        screenState = if (boss.name.isEmpty()) {
-            "creation"
-        } else {
-            "chat"
-        }
+    val boss = remember { gameState.getBoss() }
+    var screenState by remember {
+        mutableStateOf(if (boss.name.isEmpty()) "creation" else "chat")
     }
 
     when (screenState) {
