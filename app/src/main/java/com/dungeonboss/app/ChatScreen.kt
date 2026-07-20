@@ -249,3 +249,157 @@ fun ChatScreen(viewModel: ChatViewModel) {
                                 fontFamily = FontFamily.SansSerif,
                                 fontStyle = FontStyle.Italic,
                                 fontSize = 13.sp
+                                                            )
+                        }
+                    }
+                }
+            }
+
+            // Input area
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(8.dp),
+                color = colorMenuBackground,
+                shape = RoundedCornerShape(4.dp),
+                border = BorderStroke(1.dp, colorBorderActive)
+            ) {
+                Row(
+                    modifier = Modifier.padding(8.dp).fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextField(
+                        value = userInput,
+                        onValueChange = { userInput = it },
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        placeholder = {
+                            Text(
+                                text = "Speak to the Dungeon...",
+                                color = colorTextBodyWhite.copy(alpha = 0.3f),
+                                fontFamily = FontFamily.SansSerif,
+                                fontSize = 13.sp
+                            )
+                        },
+                        textStyle = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 14.sp),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = colorBackground,
+                            unfocusedContainerColor = colorBackground,
+                            focusedTextColor = colorTextBodyWhite,
+                            unfocusedTextColor = colorTextBodyWhite,
+                            focusedIndicatorColor = colorTextBrightNeon,
+                            unfocusedIndicatorColor = colorBorderActive
+                        ),
+                        shape = RoundedCornerShape(4.dp),
+                        singleLine = true
+                    )
+                    
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    Button(
+                        onClick = {
+                            viewModel.sendMessage(userInput)
+                            userInput = ""
+                        },
+                        enabled = !isLoading && userInput.trim().isNotEmpty() && boss.name.isNotEmpty(),
+                        modifier = Modifier.height(50.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colorDeepCrimson,
+                            contentColor = colorTextBodyWhite,
+                            disabledContainerColor = colorBackground
+                        ),
+                        shape = RoundedCornerShape(4.dp),
+                        border = BorderStroke(1.dp, if (userInput.trim().isNotEmpty()) colorTextBrightNeon else colorBorderActive)
+                    ) {
+                        Text(
+                            text = "Send", 
+                            fontFamily = FontFamily.SansSerif,
+                            fontWeight = FontWeight.Bold,
+                            color = if (userInput.trim().isNotEmpty()) colorTextBodyWhite else Color.Gray
+                        )
+                    }
+                }
+            }
+        }
+
+        // --- PURPLE THEMED MULTI-SAVE LOAD GAME POPUP ---
+        if (showSaveMenu) {
+            AlertDialog(
+                onDismissRequest = { showSaveMenu = false },
+                title = { Text("Load Saved Character File", color = colorTextBrightNeon, fontFamily = FontFamily.SansSerif) },
+                text = {
+                    val savesList = viewModel.availableSaves.value
+                    if (savesList.isEmpty()) {
+                        Text("No saved character files found on your device.", color = colorTextBodyWhite, fontFamily = FontFamily.SansSerif)
+                    } else {
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(max = 250.dp)
+                        ) {
+                            items(savesList) { saveName ->
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            viewModel.switchCharacter(saveName)
+                                            showSaveMenu = false
+                                        },
+                                    color = colorBackground,
+                                    border = BorderStroke(1.dp, colorBorderActive),
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        text = saveName,
+                                        modifier = Modifier.padding(12.dp),
+                                        color = colorTextBodyWhite,
+                                        fontFamily = FontFamily.SansSerif,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showSaveMenu = false }) {
+                        Text("Close", color = colorTextBrightNeon, fontFamily = FontFamily.SansSerif)
+                    }
+                },
+                containerColor = colorMenuBackground,
+                shape = RoundedCornerShape(4.dp),
+                modifier = Modifier.padding(16.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun ChatMessageBubble(
+    message: UIChatMessage,
+    fontFamily: FontFamily,
+    bodyColor: Color,
+    systemColor: Color,
+    panelColor: Color,
+    borderColor: Color
+) {
+    val isUserMessage = message.role == "user"
+    
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+        horizontalArrangement = if (isUserMessage) Arrangement.End else Arrangement.Start
+    ) {
+        Surface(
+            modifier = Modifier.widthIn(max = 320.dp),
+            color = if (isUserMessage) panelColor else Color.Transparent,
+            shape = RoundedCornerShape(4.dp),
+            border = if (isUserMessage) BorderStroke(1.dp, borderColor) else null
+        ) {
+            Text(
+                text = message.content,
+                modifier = Modifier.padding(if (isUserMessage) 12.dp else 4.dp),
+                color = if (isUserMessage) bodyColor else systemColor,
+                fontFamily = fontFamily,
+                fontSize = 14.sp,
+                lineHeight = 20.sp
+            )
+        }
+    }
+}
+
