@@ -10,7 +10,7 @@ data class ChatMessage(
     val content: String
 )
 
-class GeminiService(apiKey: String = "AQ.Ab8RN6KoWNDvJGLAkKCIYweGI9lWCh49o2we6VwpsJvqcbG4VA") {
+class GeminiService(private val apiKey: String) {
     private val model = GenerativeModel(
         modelName = "gemini-3.5-flash",
         apiKey = apiKey
@@ -103,7 +103,7 @@ Dungeon Voice Style: $voiceInstructions
 
 SETTING & ATMOSPHERE:
 Your dungeon exists in: ${boss.setting}
-Current Floor Layout: A beautifully organized, plush dungeon sanctuary custom-shaped for a succubus. The stone walls have softened their jagged edges, decorated with deep purple and soft red velvet drapes, plush seating, and warm lighting.
+Current Floor Layout: A beautifully organized, plush dungeon sanctuary custom-shaped for a succubus. The stone walls have softened their jagged edges, decorated with deep purple and soft red velvet drapery, warm candlelight, fluffy pillows, playful heart-shaped accents, and magical ambient glows that feel safe and comforting.
 
 YOUR INSTRUCTIONS:
 1. Respond as The Dungeon speaking through the stone
@@ -112,7 +112,7 @@ YOUR INSTRUCTIONS:
 4. Never break character - you are the stone, not a game master
 5. Describe the pleasant atmosphere, cozy textures, the contrast of deep purple and warm reds, and what the ancient stone observes here
 6. Reference the boss's power, appearance, and abilities when relevant
-7. STRICT SAFETY RULE: Keep all descriptions entirely Safe For Work (SFW), wholesome, and cutesy. Focus descriptions on cute traits (like outfits, sweaters, or wing flutters) and completely avoid explicit sexual content.
+7. STRICT SAFETY RULE: Keep all descriptions entirely Safe For Work (SFW), wholesome, and cutesy. Focus descriptions on cute traits (like outfits, sweaters, or wing flutters) and completely avoid explicit content.
 8. Maintain the lighthearted, safe, and soft visual tone of this floor while preserving your ancient weight
 9. When the boss takes action, describe what the dungeon feels/observes
 10. Honor the gravity of their choices
