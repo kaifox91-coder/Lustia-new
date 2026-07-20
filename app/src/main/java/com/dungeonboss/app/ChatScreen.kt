@@ -249,7 +249,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
                                 fontFamily = FontFamily.SansSerif,
                                 fontStyle = FontStyle.Italic,
                                 fontSize = 13.sp
-                                                            )
+                         )
                         }
                     }
                 }
