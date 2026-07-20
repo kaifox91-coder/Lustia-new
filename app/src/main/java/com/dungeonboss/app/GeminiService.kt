@@ -184,15 +184,13 @@ TONE GUIDE:
             e is java.net.UnknownHostException ||
             e is java.net.SocketTimeoutException ||
             e is java.io.IOException -> ApiErrorReason.NETWORK_ERROR
-            // 403 "unregistered callers" means the gateway never saw a valid key —
-            // treat as MISSING_API_KEY (key not transmitted / not recognized by server)
-            msg.contains("403") && msg.contains("unregistered", ignoreCase = true) -> ApiErrorReason.MISSING_API_KEY
-            msg.contains("unregistered callers", ignoreCase = true) -> ApiErrorReason.MISSING_API_KEY
+            // "Unregistered callers" / METHOD_NOT_ALLOWED: server never saw a valid key.
+            // Must be checked before the generic auth-rejection branch below.
+            msg.contains("unregistered", ignoreCase = true) ||
             msg.contains("METHOD_NOT_ALLOWED", ignoreCase = true) -> ApiErrorReason.MISSING_API_KEY
-            // Explicit authentication rejection: key present but invalid / expired
+            // Explicit authentication rejection: key present but invalid / expired / no permission
             msg.contains("API_KEY_INVALID", ignoreCase = true) ||
             msg.contains("401") ||
-            msg.contains("403") ||
             msg.contains("UNAUTHENTICATED", ignoreCase = true) ||
             msg.contains("PERMISSION_DENIED", ignoreCase = true) -> ApiErrorReason.INVALID_API_KEY
             // Rate limiting / quota exhaustion

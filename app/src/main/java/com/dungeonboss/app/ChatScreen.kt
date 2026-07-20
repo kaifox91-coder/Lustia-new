@@ -160,7 +160,7 @@ class ChatViewModel(context: Context) : ViewModel() {
 fun ChatScreen(viewModel: ChatViewModel) {
     var userInput by remember { mutableStateOf("") }
     var showSaveMenu by remember { mutableStateOf(false) }
-    var showDebugCard by remember { mutableStateOf(true) }
+    var showDebugCard by remember { mutableStateOf(false) }
     
     val messages = viewModel.uiMessages.value
     val isLoading = viewModel.isLoading.value
