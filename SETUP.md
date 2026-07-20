@@ -73,37 +73,34 @@ cd Lustia-new
 
 ---
 
-## STEP 5: Add API Key to Code
+## STEP 5: Add API Key Securely (Recommended)
 
-### Method A: Quick Development (Easy)
+1. Create or edit your Gradle user properties file:
+   - macOS/Linux: `~/.gradle/gradle.properties`
+   - Windows: `%USERPROFILE%\\.gradle\\gradle.properties`
 
-1. In Android Studio, open:
+2. Add your key:
+   ```properties
+   GEMINI_API_KEY=AIzaSy_YOUR_ACTUAL_KEY_HERE
    ```
-   app/src/main/java/com/dungeonboss/app/ChatScreen.kt
+
+3. In `app/build.gradle`, expose it in BuildConfig:
+   ```gradle
+   android {
+       defaultConfig {
+           buildConfigField "String", "TEST_API_KEY", "\"${project.findProperty("GEMINI_API_KEY") ?: ""}\""
+       }
+   }
    ```
 
-2. Find line 37:
+4. In app code, initialize Gemini with BuildConfig:
    ```kotlin
-   private val apiKey = "YOUR_GEMINI_API_KEY"
+   val geminiService = GeminiService(BuildConfig.TEST_API_KEY)
    ```
 
-3. Replace with your actual key:
-   ```kotlin
-   private val apiKey = "AIzaSy_YOUR_ACTUAL_KEY_HERE"
-   ```
+5. Sync Gradle and rebuild.
 
-4. **Save** (Ctrl+S or Cmd+S)
-
-### Method B: Secure Production (Recommended)
-
-Create a `local.properties` file in the project root:
-
-```properties
-# In project_root/local.properties
-GEMINI_API_KEY=AIzaSy_YOUR_KEY_HERE
-```
-
-Then update `ChatScreen.kt` to read from BuildConfig. (See README.md for details)
+> Do **not** place API keys directly in Kotlin source files.
 
 ---
 
@@ -210,7 +207,7 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 
 ### "API key not found / Invalid"
 - ✅ Verify key from https://aistudio.google.com/app/apikey
-- ✅ Check you copied the ENTIRE key (no spaces)
+- ✅ Ensure `GEMINI_API_KEY` exists in `~/.gradle/gradle.properties`
 - ✅ Restart Android Studio after editing
 - ✅ Rebuild APK
 
@@ -282,7 +279,7 @@ Lustia-new/
 ├── build.gradle                        ← Project config
 ├── README.md                           ← Full documentation
 ├── SETUP.md                            ← This file
-└── local.properties                    ← Your API key (git-ignored)
+└── local.properties                    ← Local machine config (git-ignored)
 ```
 
 ---
