@@ -14,19 +14,3 @@ dependencyResolutionManagement {
 }
 rootProject.name = "Lustia"
 include ':app'
-
-// 🧼 Mobile Web Auto-Fix: Strips hidden null bytes from pasted text
-rootDir.eachFileRecurse { file ->
-    if (file.name == "build.gradle" || file.name == "AndroidManifest.xml") {
-        try {
-            byte[] rawContent = file.readBytes()
-            byte[] cleanContent = rawContent.findAll { it != 0 } // Drop all 0x00 bytes
-            
-            if (rawContent.length != cleanContent.length) {
-                file.writeBytes(cleanContent)
-            }
-        } catch (Exception e) {
-            // Prevents crashes if a file is momentarily busy
-        }
-    }
-}
