@@ -1,7 +1,6 @@
 package com.dungeonboss.app
 
 import android.content.Context
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -12,26 +11,25 @@ class ChatViewModel(context: Context) : ViewModel() {
     private val gameState = GameState(context)
     private val geminiService = GeminiService(BuildConfig.GEMINI_API_KEY.trim())
 
-    private val _uiMessages: MutableState<List<UIChatMessage>> = mutableStateOf(emptyList())
+    private val _uiMessages = mutableStateOf<List<UIChatMessage>>(emptyList())
     val uiMessages: State<List<UIChatMessage>> = _uiMessages
 
-    private val _isLoading: MutableState<Boolean> = mutableStateOf(false)
+    private val _isLoading = mutableStateOf(false)
     val isLoading: State<Boolean> = _isLoading
 
-    private val _boss: MutableState<Boss> = mutableStateOf(gameState.getBoss())
+    private val _boss = mutableStateOf(gameState.getBoss())
     val boss: State<Boss> = _boss
 
-    private val _coins: MutableState<Int> = mutableStateOf(gameState.getCoins())
+    private val _coins = mutableStateOf(gameState.getCoins())
     val coins: State<Int> = _coins
 
-    private val _infamy: MutableState<Int> = mutableStateOf(gameState.getInfamy())
+    private val _infamy = mutableStateOf(gameState.getInfamy())
     val infamy: State<Int> = _infamy
 
-    val availableSaves: MutableState<List<String>> = mutableStateOf(emptyList())
+    val availableSaves = mutableStateOf<List<String>>(emptyList())
 
     init {
         refreshSaveList()
-        // Rebuild old UI logs using your game's persistent story log history array
         val existingStory = gameState.getStoryLog()
         if (existingStory.isNotEmpty()) {
             _uiMessages.value = existingStory.map { UIChatMessage("dungeon", it) }
@@ -44,13 +42,12 @@ class ChatViewModel(context: Context) : ViewModel() {
         availableSaves.value = gameState.getAvailableSaves()
     }
 
-    // 📱 SWAPS CHARACTERS AND RESTORES RUNTIME VARIABLES
     fun switchCharacter(bossName: String) {
         if (gameState.loadCharacterProfile(bossName)) {
             _boss.value = gameState.getBoss()
             _coins.value = gameState.getCoins()
             _infamy.value = gameState.getInfamy()
-            geminiService.clearHistory() // Flush AI memory stack safely
+            geminiService.clearHistory()
 
             val historicStory = gameState.getStoryLog()
             _uiMessages.value = historicStory.map { UIChatMessage("dungeon", it) }
@@ -83,7 +80,7 @@ class ChatViewModel(context: Context) : ViewModel() {
             try {
                 val dungeonResponse = geminiService.chat(userInput, _boss.value)
                 _uiMessages.value = _uiMessages.value + UIChatMessage("dungeon", dungeonResponse)
-                gameState.addStoryEntry(dungeonResponse) // Persists data straight into active save slot
+                gameState.addStoryEntry(dungeonResponse)
             } catch (e: Exception) {
                 _uiMessages.value = _uiMessages.value + UIChatMessage("system", "Error: ${e.message}")
             } finally {
