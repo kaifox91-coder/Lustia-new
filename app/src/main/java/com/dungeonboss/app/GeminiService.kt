@@ -12,7 +12,7 @@ data class ChatMessage(
 
 class GeminiService(apiKey: String = "AQ.Ab8RN6KoWNDvJGLAkKCIYweGI9lWCh49o2we6VwpsJvqcbG4VA") {
     private val model = GenerativeModel(
-        modelName = "gemini-1.5-flash",
+        modelName = "gemini-3.5-flash",
         apiKey = apiKey
     )
 
