@@ -2,49 +2,48 @@ name: Build Android App Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ Main ]
+  pull_request:
+    branches: [ Main ]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
-    name: Compile APK Binary
+    name: Build + Test Android
     runs-on: ubuntu-latest
     env:
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      ORG_GRADLE_PROJECT_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
     steps:
-      - name: Checkout Code Base
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java Setup Environment
+      - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: "17"
+          cache: gradle
 
-      - name: Setup Gradle Compiler Package Tool
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: 8.2
-          cache-disabled: true
 
-      - name: Build Pure Manifest File from Scratch
-        run: |
-          mkdir -p app/src/main
-          echo "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPG1hbmlmZXN0IHhtbG5zOmFuZHJvaWQ9Imh0dHA6Ly9zY2hlbWFzLmFuZHJvaWQuY29tL2Fway9yZXMvYW5kcm9pZCI+CiAgICA8dXNlcy1wZXJtaXNzaW9uIGFuZHJv[...]"
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
 
-      # 🧼 Mobile Clipboard Fix: Automatically scrubs null bytes out of ALL raw text files globally
-      - name: Purge Hidden Clipboard Null Bytes Globally
-        run: |
-          echo "Scanning all repository text files for hidden clipboard characters..."
-          find . -type f -not -path '*/.*' -exec grep -Iq . {} \; -exec sed -i 's/\x00//g' {} +
+      - name: Build debug APK
+        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
 
-      - name: Execute Background Compilation Steps
-        run: gradle assembleDebug -p "$GITHUB_WORKSPACE" -Pandroid.useAndroidX=true --no-daemon --no-build-cache --stacktrace
-        env:
-          GRADLE_OPTS: -Xmx1536m -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=1 -Dorg.gradle.daemon=false
+      - name: Run unit tests
+        run: ./gradlew :app:testDebugUnitTest --no-daemon --stacktrace
 
-      - name: Upload Compiled APK Artifact Link
+      - name: Upload debug APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
           path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
