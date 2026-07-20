@@ -1,116 +1,65 @@
 package com.dungeonboss.app
 
-import android.content.Context
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.State
-import androidx.compose.runtime.mutableStateOf
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 
-class ChatViewModel(context: Context) : ViewModel() {
-    private val gameState = GameState(context)
-    private val geminiService = GeminiService(BuildConfig.GEMINI_API_KEY.trim())
+@Serializable
+data class BossStats(
+    val size: String = "Average",
+    val physique: String = "Fit",
+    val resilience: String = "Tough",
+    val willpower: String = "Steady",
+    val speed: String = "Average",
+    val agility: String = "Agile",
+    val reflexes: String = "Sharp",
+    val weaponHandling: String = "Skilled",
+    val tactics: String = "Calculated",
+    val aim: String = "Precise",
+    val charisma: String = "Charming",
+    val deception: String = "Slippery",
+    val seduction: String = "Enticing",
+    val manipulation: String = "Cunning",
+    val trapCraft: String = "Expert",
+    val floorKnowledge: String = "Intimate",
+    val minionCommand: String = "Feared",
+    val arcana: String = "Versed",
+    val manaSurge: String = "Lake"
+)
 
-    private val _uiMessages: MutableState<List<UIChatMessage>> = mutableStateOf(emptyList())
-    val uiMessages: State<List<UIChatMessage>> = _uiMessages
+@Serializable
+data class Boss(
+    val name: String = "",
+    val race: String = "",
+    val age: Int = 18,
+    val height: String = "",
+    val gender: String = "",
+    val appearance: String = "",
+    val title: String = "",
+    val setting: String = "",
+    val floorTheme: String = "",
+    val bosspower: String = "",
+    val hp: Int = 100,
+    val skills: List<String> = emptyList(),
+    val techniques: List<String> = emptyList(),
+    val spells: List<String> = emptyList(),
+    val stats: BossStats = BossStats(),
+    val dungeonVoice: String = "Chronicle"
+)
 
-    private val _isLoading: MutableState<Boolean> = mutableStateOf(false)
-    val isLoading: State<Boolean> = _isLoading
+@Serializable
+data class Minion(
+    val name: String,
+    val hp: Int = 100,
+    val status: String = "active"
+)
 
-    private val _boss: MutableState<Boss> = mutableStateOf(gameState.getBoss())
-    val boss: State<Boss> = _boss
-
-    private val _coins: MutableState<Int> = mutableStateOf(gameState.getCoins())
-    val coins: State<Int> = _coins
-
-    private val _infamy: MutableState<Int> = mutableStateOf(gameState.getInfamy())
-    val infamy: State<Int> = _infamy
-
-    val availableSaves: MutableState<List<String>> = mutableStateOf(emptyList())
-
-    init {
-        refreshSaveList()
-        // Rebuild old UI logs using your game's persistent story log history array
-        val existingStory = gameState.getStoryLog()
-        if (existingStory.isNotEmpty()) {
-            _uiMessages.value = existingStory.map { UIChatMessage("dungeon", it) }
-        } else {
-            initializeDungeon()
-        }
-    }
-
-    fun refreshSaveList() {
-        availableSaves.value = gameState.getAvailableSaves()
-    }
-
-    // 📱 SWAPS CHARACTERS AND RESTORES RUNTIME VARIABLES
-    fun switchCharacter(bossName: String) {
-        if (gameState.loadCharacterProfile(bossName)) {
-            _boss.value = gameState.getBoss()
-            _coins.value = gameState.getCoins()
-            _infamy.value = gameState.getInfamy()
-            geminiService.clearHistory() // Flush AI memory stack safely
-
-            val historicStory = gameState.getStoryLog()
-            _uiMessages.value = historicStory.map { UIChatMessage("dungeon", it) }
-            refreshSaveList()
-        }
-    }
-
-    private fun initializeDungeon() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            try {
-                val dungeonGreeting = geminiService.initializeDungeon(_boss.value)
-                _uiMessages.value = listOf(UIChatMessage("dungeon", dungeonGreeting))
-                gameState.addStoryEntry(dungeonGreeting)
-            } catch (e: Exception) {
-                _uiMessages.value = listOf(UIChatMessage("system", "Error: ${e.message}"))
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
-    fun sendMessage(userInput: String) {
-        if (userInput.trim().isEmpty()) return
-
-        viewModelScope.launch {
-            _isLoading.value = true
-            _uiMessages.value = _uiMessages.value + UIChatMessage("user", userInput)
-
-            try {
-                val dungeonResponse = geminiService.chat(userInput, _boss.value)
-                _uiMessages.value = _uiMessages.value + UIChatMessage("dungeon", dungeonResponse)
-                gameState.addStoryEntry(dungeonResponse) // Persists data straight into active save slot
-            } catch (e: Exception) {
-                _uiMessages.value = _uiMessages.value + UIChatMessage("system", "Error: ${e.message}")
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
-    fun updateBoss(boss: Boss) {
-        _boss.value = boss
-        gameState.updateBoss(boss)
-        refreshSaveList()
-    }
-
-    fun addCoins(amount: Int) {
-        gameState.addCoins(amount)
-        _coins.value = gameState.getCoins()
-    }
-
-    fun addInfamy(amount: Int) {
-        gameState.addInfamy(amount)
-        _infamy.value = gameState.getInfamy()
-    }
-
-    fun resetChat() {
-        geminiService.clearHistory()
-        _uiMessages.value = emptyList()
-        initializeDungeon()
-    }
-}
+@Serializable
+data class GameData(
+    val boss: Boss = Boss(),
+    val coins: Int = 0,
+    val infamy: Int = 0,
+    val minions: List<Minion> = emptyList(),
+    val storyLog: List<String> = emptyList(),
+    val creationStep: Int = 0,
+    val bonds: Map<String, Int> = emptyMap(),
+    val lastUpdated: Long = System.currentTimeMillis()
+)
