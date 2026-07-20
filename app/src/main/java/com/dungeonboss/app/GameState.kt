@@ -3,31 +3,8 @@ package com.dungeonboss.app
 import android.content.Context
 import androidx.core.content.edit
 import android.content.SharedPreferences
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
-
-@Serializable
-data class Minion(
-    val name: String,
-    val type: String,
-    val hp: Int,
-    val maxHp: Int,
-    val status: String = "active"
-)
-
-@Serializable
-data class GameData(
-    val boss: Boss = Boss(),
-    val coins: Int = 50,
-    val infamy: Int = 0,
-    val minions: List<Minion> = listOf(),
-    val activeTraps: List<String> = listOf(),
-    val bonds: Map<String, Int> = mapOf(),
-    val storyLog: List<String> = listOf(),
-    val lastUpdated: Long = System.currentTimeMillis(),
-    val creationStep: Int = 0
-)
 
 class GameState(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("dungeon_boss_game", Context.MODE_PRIVATE)
@@ -49,7 +26,6 @@ class GameState(context: Context) {
     }
 
     fun saveGame() {
-        // FIXED: Correct type token inference format for serialization
         val jsonStr = json.encodeToString(gameData)
         prefs.edit {
             putString("game_data", jsonStr)
