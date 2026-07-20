@@ -2,32 +2,34 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Dungeon Floor Boss Console</title>
+  <title>Lustia Bridge Harness</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { font-family: system-ui, sans-serif; margin:16px; background:#0a0f1d; color:#e2e8f0; }
-    .card { background:#111827; padding:16px; border-radius:12px; margin-bottom:16px; border:1px solid #1f2937; }
-    h2, h3 { margin-top:0; color:#3b82f6; }
-    input, textarea { width:100%; padding:10px; border-radius:8px; border:1px solid #374151; background:#0a0f1d; color:#f8fafc; box-sizing: border-box; font-size:14px; }
-    .btn-group { display:flex; gap:10px; margin-top:12px; }
-    button { padding:10px 16px; border-radius:8px; background:#2563eb; color:white; border:0; font-weight:bold; cursor:pointer; font-size:14px; }
-    button:disabled { background:#1d4ed8; opacity:0.5; }
-    button.secondary { background:#4b5563; }
-    pre { white-space:pre-wrap; word-wrap:break-word; color:#93c5fd; font-size:13px; line-height:1.6; margin:0; background:#070a13; padding:12px; border-radius:6px; }
-    #logBox { max-height:120px; overflow-y:auto; font-family:monospace; color:#ef4444; }
-    label { display:block; font-size:12px; color:#94a3b8; margin-bottom:6px; font-weight:600; text-transform:uppercase; }
+    body { font-family: Inter, system-ui, sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:16px; }
+    .card { background:#111827; border:1px solid #374151; border-radius:14px; padding:16px; margin-bottom:16px; }
+    input, textarea, button { width:100%; box-sizing:border-box; border-radius:10px; border:1px solid #374151; background:#1f2937; color:#e5e7eb; padding:10px; }
+    button { cursor:pointer; font-weight:600; }
+    .btn-group { display:flex; gap:8px; }
+    .btn-group button { flex:1; }
+    .secondary { background:#111827; }
+    pre { white-space:pre-wrap; background:#020617; border:1px solid #334155; border-radius:10px; padding:10px; min-height:70px; }
+    label { display:block; margin:8px 0 6px; font-size:13px; color:#93c5fd; }
+    .muted { color:#94a3b8; font-size:12px; margin-top:8px; }
   </style>
 </head>
 <body>
-
   <div class="card">
-    <h2>Dungeon Engine Console</h2>
+    <h2>🧩 Android JS Bridge Test Panel</h2>
+    <p class="muted">Uses AndroidBridge when present. Browser fallback calls Gemini REST with private key entry only.</p>
+
     <label>Google Gemini API Key</label>
     <input id="apiKey" type="password" placeholder="AIzaSy..." />
     <div style="height:12px"></div>
+
     <label>Dungeon Prompt</label>
     <textarea id="prompt" rows="4">You are a dungeon boss. Describe one opening move.</textarea>
-    <div class="btn-group">
+
+    <div class="btn-group" style="margin-top:10px;">
       <button id="send">Send Action</button>
     </div>
   </div>
@@ -62,7 +64,7 @@
       logDiag(`Native callback returned for ID: ${callbackId}`);
       try {
         const cb = callbacks[callbackId];
-        if (!cb) return logDiag("No matching registry tracking found.", true);
+        if (!cb) return logDiag('No matching registry tracking found.', true);
         delete callbacks[callbackId];
         cb.resolve(JSON.parse(payloadString));
       } catch (e) {
@@ -74,7 +76,7 @@
       setApiKey: (k) => {
         if (window.AndroidBridge && window.AndroidBridge.setApiKey) {
           window.AndroidBridge.setApiKey(k);
-          logDiag("API Key synced to secure storage.");
+          logDiag('API key synced to secure storage.');
         } else {
           localStorage.setItem('gemini_key', k);
         }
@@ -88,7 +90,7 @@
       sendPrompt: async function(promptText) {
         const cbId = genId();
         const payload = { prompt: promptText };
-        logDiag(`Dispatching clean packet ID: ${cbId}`);
+        logDiag(`Dispatching packet ID: ${cbId}`);
 
         return new Promise((resolve, reject) => {
           callbacks[cbId] = { resolve, reject };
@@ -96,64 +98,56 @@
           if (window.AndroidBridge && window.AndroidBridge.openAIProxy) {
             window.AndroidBridge.openAIProxy(JSON.stringify(payload), cbId);
           } else {
-            logDiag("Browser fallback routing...");
+            logDiag('Browser fallback routing...');
             const key = DungeonAPI.getApiKey();
-            if (!key) return reject("Missing API Key entry configuration.");
-            
-            const geminiPayload = { contents: [{ role: "user", parts: [{ text: promptText }] }] };
-            fetch(`https://googleapis.com{key}`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
+            if (!key) return reject('Missing API key configuration.');
+
+            const geminiPayload = { contents: [{ role: 'user', parts: [{ text: promptText }] }] };
+            fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(key)}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(geminiPayload)
             })
-            .then(r => r.json())
-            .then(data => {
-              const txt = data.candidates?.[0]?.content?.parts?.[0]?.text || JSON.stringify(data);
-              resolve({ text: txt });
-            })
-            .catch(reject);
+              .then((r) => r.json())
+              .then((j) => resolve(j))
+              .catch((e) => reject(e));
           }
         });
       }
     };
 
-    window.addEventListener('DOMContentLoaded', () => {
-      const savedKey = DungeonAPI.getApiKey();
-      if (savedKey) document.getElementById('apiKey').value = savedKey;
-      if (window.AndroidBridge) logDiag("Native API bridges locked and active.");
-    });
-
     document.getElementById('send').addEventListener('click', async () => {
-      const button = document.getElementById('send');
-      const promptText = document.getElementById('prompt').value;
       const key = document.getElementById('apiKey').value.trim();
-      
-      if (key) DungeonAPI.setApiKey(key);
-      document.getElementById('out').textContent = 'Consulting the Gemini engine...';
-      button.disabled = true;
+      const prompt = document.getElementById('prompt').value.trim();
+      const out = document.getElementById('out');
 
+      if (!prompt) {
+        out.textContent = 'Please enter a prompt.';
+        return;
+      }
+
+      if (key) DungeonAPI.setApiKey(key);
+
+      out.textContent = 'Thinking...';
       try {
-        const res = await DungeonAPI.sendPrompt(promptText);
-        if (res.text) {
-          document.getElementById('out').textContent = res.text;
-          logDiag("Success. Response extracted cleanly.");
-        } else if (res.error) {
-          document.getElementById('out').textContent = 'Error: ' + JSON.stringify(res.error);
-          logDiag("Server exception returned.", true);
-        } else {
-          document.getElementById('out').textContent = JSON.stringify(res, null, 2);
-        }
+        const res = await DungeonAPI.sendPrompt(prompt);
+        const text = res?.candidates?.[0]?.content?.parts?.map(p => p.text).join(' ') || JSON.stringify(res, null, 2);
+        out.textContent = text || 'No output';
+        logDiag('Response handled successfully.');
       } catch (e) {
-        document.getElementById('out').textContent = 'Pipeline error.';
-        logDiag(`Crash: ${String(e)}`, true);
-      } finally {
-        button.disabled = false;
+        out.textContent = `Error: ${e?.message || e}`;
+        logDiag(`Request failed: ${e?.message || e}`, true);
       }
     });
 
-    document.getElementById('copyLog').addEventListener('click', () => {
-      navigator.clipboard.writeText(document.getElementById('logBox').textContent);
-      alert("Logs copied!");
+    document.getElementById('copyLog').addEventListener('click', async () => {
+      const text = document.getElementById('logBox').textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        logDiag('Diagnostic log copied.');
+      } catch {
+        logDiag('Clipboard copy failed.', true);
+      }
     });
   </script>
 </body>

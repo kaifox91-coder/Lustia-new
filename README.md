@@ -1,4 +1,4 @@
-# 🗿 I FELL IN LOVE WITH A DUNGEON BOSS - Android Chatbot
+# Lustia-new
 
 A local Android chatbot powered by Google Gemini AI, fully playable on your phone. Create your Dungeon Boss character and chat with an ancient, sentient dungeon system.
 
@@ -14,30 +14,25 @@ A local Android chatbot powered by Google Gemini AI, fully playable on your phon
 
 ### Prerequisites
 - Android Studio (latest)
-- Android SDK 26+ 
+- Android SDK 26+
 - Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
 
 ### Setup Steps
 
 #### 1. Get Your Gemini API Key
-```bash
 1. Visit https://aistudio.google.com/app/apikey
-2. Click "Get API Key"
+2. Click **Get API Key**
 3. Create a new API key
 4. Copy the key
+
+#### 2. Add API Key Privately (Required)
+Create or edit `local.properties` in the project root and add exactly one key:
+
+```properties
+GEMINI_API_KEY=AIzaSy_your_actual_key_here
 ```
 
-#### 2. Update the API Key in Code
-Open `app/src/main/java/com/dungeonboss/app/ChatScreen.kt` and replace:
-```kotlin
-private val apiKey = "YOUR_GEMINI_API_KEY"
-```
-with your actual key:
-```kotlin
-private val apiKey = "your-actual-gemini-api-key-here"
-```
-
-**⚠️ Security Note:** For production apps, store the API key in `BuildConfig` using Gradle secrets. See [Google's guide](https://developers.google.com/identity/protocols/oauth2#secretsclient).
+> Keep this file private. Do not commit API keys to Git.
 
 #### 3. Build the APK
 ```bash
@@ -58,6 +53,11 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 
 # Or manually transfer the APK and tap to install
 ```
+
+## 🔐 Security Notes
+- The app reads your key from `BuildConfig.GEMINI_API_KEY`.
+- Do not hardcode API keys in source files.
+- Do not paste API keys into docs, screenshots, issues, or commit messages.
 
 ## 🎮 How to Play
 
@@ -82,206 +82,3 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 - `#infamy` - View your Infamy level
 - `#bonds` - See relationships with NPCs
 - `#story` - Review the last 7 days
-
-## 📁 Project Structure
-
-```
-app/src/main/java/com/dungeonboss/app/
-├── MainActivity.kt              # Entry point, navigation
-├── GameState.kt                 # Local persistence (SharedPreferences)
-├── GeminiService.kt             # Gemini API integration
-├── ChatScreen.kt                # Chat UI (Jetpack Compose)
-└── CharacterCreationScreen.kt   # 7-step character wizard
-
-app/build.gradle                 # Dependencies & Compose setup
-app/src/main/AndroidManifest.xml # Internet permissions
-```
-
-## 🔧 Configuration
-
-### API Key Management
-For **development**: Store directly in code (as shown above)  
-For **production**: Use Gradle BuildConfig:
-
-```gradle
-// In app/build.gradle
-defaultConfig {
-    manifestPlaceholders = [geminiApiKey: "YOUR_KEY"]
-}
-```
-
-Then in `AndroidManifest.xml`:
-```xml
-<meta-data android:name="com.google.ai.api_key" android:value="${geminiApiKey}" />
-```
-
-### Customizing the Dungeon's Voice
-Edit `GeminiService.kt` line 41-62 to change the system prompt and dungeon personality.
-
-### Changing UI Colors
-Edit `ChatScreen.kt` and `CharacterCreationScreen.kt` - search for `Color(0xFF...)` hex values.
-
-## 📱 Device Requirements
-
-- **Minimum API**: 26 (Android 8.0)
-- **Target API**: 34 (Android 14)
-- **RAM**: 2GB+ recommended
-- **Storage**: ~50MB for app + local data
-- **Internet**: Required for Gemini API calls only
-
-## 🛠️ Building Release APK
-
-```bash
-# Build optimized release APK
-./gradlew assembleRelease
-
-# Or use Android Studio:
-# Build → Build Bundle(s)/APK(s) → Build APK(s) → Release
-```
-
-Release APKs are smaller and faster. Located at:
-```
-app/build/outputs/apk/release/app-release.apk
-```
-
-## 🐛 Troubleshooting
-
-### "API key is invalid"
-- ✅ Verify the key from [AI Studio](https://aistudio.google.com/app/apikey)
-- ✅ Paste it exactly (no extra spaces)
-- ✅ Restart the app after updating
-
-### "Internet permission denied"
-- ✅ Check `AndroidManifest.xml` has `<uses-permission android:name="android.permission.INTERNET" />`
-- ✅ Grant internet permission when app starts
-
-### "Failed to build"
-```bash
-# Clean and rebuild
-./gradlew clean
-./gradlew assembleDebug
-```
-
-### App crashes on character creation
-- ✅ Ensure all required fields are filled
-- ✅ Check Kotlin version matches `build.gradle` (1.9.10)
-- ✅ Update Android Studio to latest version
-
-## 📚 Game Data
-
-### Saved Locally
-- Boss stats and appearance
-- Game state (HP, stamina, coins, infamy)
-- Story log (last 7 days)
-- NPC bonds and relationships
-- Minion roster
-
-**Storage**: `SharedPreferences` in `GameState.kt`  
-**Location**: `/data/data/com.dungeonboss.app/shared_prefs/`  
-**Format**: JSON serialized
-
-### Clearing All Data
-```kotlin
-gameState.resetGame() // Clears everything
-```
-
-## 🔐 Privacy & Security
-
-- ✅ **All game data stored locally** - Nothing sent to servers except Gemini API calls
-- ✅ **No accounts needed** - Play offline after initial setup
-- ✅ **Internet only for Gemini** - Chat responses require API calls
-- ⚠️ **API Key in Code** - For development only. Use secure storage for production.
-
-## 📖 Character Creation Guide
-
-### Step 1: Who Are You?
-Example:
-```
-Name: Vex the Shadowborn
-Race: Half-dragon
-Age: 347
-Height: 7'6"
-Gender: Non-binary
-Appearance: Obsidian scales with silver accents, amber eyes
-```
-
-### Step 3: Your Power
-Example:
-```
-Boss Power: Void Anchor - Can trap souls in stone for 1000 years
-Skill 1: Soul Binding
-Skill 2: Floor Sensing
-Skill 3: Trap Crafting
-
-Technique 1: The Eternal Prison
-Technique 2: Stone Erosion
-Technique 3: Shadow Emergence
-```
-
-### Step 4: Stats
-Pick ONE from each row. Examples:
-```
-Size: Towering
-Physique: Muscular
-Resilience: Hardened
-Willpower: Driven
-Charisma: Magnetic
-Deception: Masterful
-```
-
-## 🎨 Customization
-
-Want to tweak the game? Key files:
-
-- **Chat colors**: `ChatScreen.kt` lines 100-200
-- **Character creation fields**: `CharacterCreationScreen.kt`
-- **Dungeon personality**: `GeminiService.kt` lines 41-62
-- **Game rules/mechanics**: `GameState.kt`
-
-## 📝 Example Gameplay
-
-```
-YOU: I rise from my throne, stone cracking beneath my feet.
-
-DUNGEON:
-The floor trembles at your rising. Your domain answers—stone grinds 
-against stone in a sound like mountains breathing. Around you, the 
-torches flare brighter, as if the air itself recognizes your movement.
-
-Ten thousand years it has held you here. Ten thousand years it waits 
-for them to come again.
-
-Today, there is a knock at the door.
-```
-
-## 🚢 Deployment Checklist
-
-- [ ] Replace API key with secure storage method
-- [ ] Test on multiple Android devices
-- [ ] Verify internet permission is granted
-- [ ] Test character creation through all 7 steps
-- [ ] Verify game state persists after restart
-- [ ] Check battery/data usage in extended play
-- [ ] Build release APK with proguard enabled
-
-## 📞 Support
-
-If you encounter issues:
-1. Check the **Troubleshooting** section above
-2. Verify your Gemini API key is valid
-3. Check Android Studio Logcat for error messages
-4. Ensure you're on API 26+ device
-5. Try: `./gradlew clean && ./gradlew assembleDebug`
-
-## 📄 License
-
-This project uses the "I Fell in Love with a Dungeon Boss" game system by [Original Creator].  
-Android implementation with Gemini AI integration.
-
----
-
-**The Dungeon is waiting.**  
-*It has been waiting for ten thousand years.*  
-*It can wait a little longer.*
-
-> "Who are you?"
