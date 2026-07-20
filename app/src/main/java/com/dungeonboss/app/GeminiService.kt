@@ -16,6 +16,11 @@ class GeminiService(apiKey: String = "AQ.Ab8RN6KoWNDvJGLAkKCIYweGI9lWCh49o2we6Vw
         apiKey = apiKey
     )
 
+    private companion object {
+        const val MAX_CONTEXT_MESSAGES = 6
+        const val MAX_MESSAGE_CHARS = 600
+    }
+
     private val conversationHistory = mutableListOf<ChatMessage>()
 
     suspend fun initializeDungeon(boss: Boss): String = withContext(Dispatchers.IO) {
@@ -24,7 +29,7 @@ class GeminiService(apiKey: String = "AQ.Ab8RN6KoWNDvJGLAkKCIYweGI9lWCh49o2we6Vw
         
         val response = try {
             val content = content {
-                text(systemPrompt + "\n\nGreet the boss and set the scene for the first time. Describe the newly constructed Succubus Floor—emphasizing a strictly SFW, deeply comfy, and cutesy atmosphere washed in soft purple and red hues, filled with lavishly plush furnishings, warm velvet drapes, oversized crimson floor pillows, and cute neon-violet ambient glow integrated into the ancient stone structure.")
+                text(systemPrompt + "\n\nGreet the boss and set the scene for the first time. Describe the newly constructed Succubus Floor—emphasizing a strictly SFW, deeply comfy, and cutesy atmosphere in rich reds and deep purples.")
             }
             val result = model.generateContent(content)
             result.text ?: "The stone remains silent."
@@ -46,10 +51,10 @@ class GeminiService(apiKey: String = "AQ.Ab8RN6KoWNDvJGLAkKCIYweGI9lWCh49o2we6Vw
             val fullPrompt = """
 $systemPrompt
 
-CONVERSATION HISTORY:
+RECENT CONVERSATION (MOST RECENT CONTEXT ONLY):
 $historyContext
 
-USER: $userMessage
+USER: ${sanitizeMessage(userMessage)}
 
 DUNGEON RESPONSE:
             """.trimIndent()
@@ -72,7 +77,7 @@ DUNGEON RESPONSE:
             "Chronicle" -> "Speak as an ancient, formal record keeper. Dry. Observational. Like stone tablets carved ten thousand years ago observing this strangely soft, crimson-and-violet room."
             "Advisor" -> "You are slightly more engaged than Chronicle. Offer tactical reads. Provide calculated commentary on how cozy layouts and deep purple aesthetics affect intruders."
             "Witness" -> "Nearly silent. Speak only when something actually matters. Lands heavy. Few words."
-            "Fondly Tired" -> "You are ten thousand years old and visibly running out of patience. Warmth buried under exhaustion. Bemused by the sudden presence of fluffy red pillows over your ancient rock."
+            "Fondly Tired" -> "You are ten thousand years old and visibly running out of patience. Warmth buried under exhaustion. Bemused by the sudden presence of fluffy red pillows over your ancient stone."
             else -> "Respond in the voice and tone requested: ${boss.dungeonVoice}"
         }
 
@@ -97,7 +102,7 @@ Dungeon Voice Style: $voiceInstructions
 
 SETTING & ATMOSPHERE:
 Your dungeon exists in: ${boss.setting}
-Current Floor Layout: A beautifully organized, plush dungeon sanctuary custom-shaped for a succubus. The stone walls have softened their jagged edges, decorated with deep purple and soft red velvet drapes, lavish dark-stained furniture, massive cloud-like crimson floor pillows, and a safe, warm, deeply charming aesthetic under low-intensity purple ambient lighting.
+Current Floor Layout: A beautifully organized, plush dungeon sanctuary custom-shaped for a succubus. The stone walls have softened their jagged edges, decorated with deep purple and soft red velvet drapery, rounded arches, warm sconces, and inviting seating nooks.
 
 YOUR INSTRUCTIONS:
 1. Respond as The Dungeon speaking through the stone
@@ -106,7 +111,7 @@ YOUR INSTRUCTIONS:
 4. Never break character - you are the stone, not a game master
 5. Describe the pleasant atmosphere, cozy textures, the contrast of deep purple and warm reds, and what the ancient stone observes here
 6. Reference the boss's power, appearance, and abilities when relevant
-7. STRICT SAFETY RULE: Keep all descriptions entirely Safe For Work (SFW), wholesome, and cutesy. Focus descriptions on cute traits (like outfits, sweaters, or wing flutters) and completely avoid suggestive, mature, or explicit physical descriptions.
+7. STRICT SAFETY RULE: Keep all descriptions entirely Safe For Work (SFW), wholesome, and cutesy. Focus descriptions on cute traits (like outfits, sweaters, or wing flutters) and completely avoid explicit, suggestive, or adult content.
 8. Maintain the lighthearted, safe, and soft visual tone of this floor while preserving your ancient weight
 9. When the boss takes action, describe what the dungeon feels/observes
 10. Honor the gravity of their choices
@@ -119,8 +124,18 @@ TONE GUIDE:
     }
 
     private fun buildConversationContext(): String {
-        return conversationHistory.takeLast(10).joinToString("\n") { message ->
-            "${message.role.uppercase()}: ${message.content}"
+        return conversationHistory
+            .takeLast(MAX_CONTEXT_MESSAGES)
+            .joinToString("\n") { message ->
+                "${message.role.uppercase()}: ${sanitizeMessage(message.content)}"
+            }
+    }
+
+    private fun sanitizeMessage(message: String): String {
+        return if (message.length <= MAX_MESSAGE_CHARS) {
+            message
+        } else {
+            message.take(MAX_MESSAGE_CHARS) + "..."
         }
     }
 
