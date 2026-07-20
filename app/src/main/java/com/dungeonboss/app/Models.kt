@@ -1,6 +1,7 @@
 package com.dungeonboss.app
 
 import android.content.Context
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -11,22 +12,22 @@ class ChatViewModel(context: Context) : ViewModel() {
     private val gameState = GameState(context)
     private val geminiService = GeminiService(BuildConfig.GEMINI_API_KEY.trim())
 
-    private val _uiMessages = mutableStateOf<List<UIChatMessage>>(emptyList())
+    private val _uiMessages: MutableState<List<UIChatMessage>> = mutableStateOf(emptyList())
     val uiMessages: State<List<UIChatMessage>> = _uiMessages
 
-    private val _isLoading = mutableStateOf(false)
+    private val _isLoading: MutableState<Boolean> = mutableStateOf(false)
     val isLoading: State<Boolean> = _isLoading
 
-    private val _boss = mutableStateOf(gameState.getBoss())
+    private val _boss: MutableState<Boss> = mutableStateOf(gameState.getBoss())
     val boss: State<Boss> = _boss
 
-    private val _coins = mutableStateOf(gameState.getCoins())
+    private val _coins: MutableState<Int> = mutableStateOf(gameState.getCoins())
     val coins: State<Int> = _coins
 
-    private val _infamy = mutableStateOf(gameState.getInfamy())
+    private val _infamy: MutableState<Int> = mutableStateOf(gameState.getInfamy())
     val infamy: State<Int> = _infamy
 
-    val availableSaves = mutableStateOf<List<String>>(emptyList())
+    val availableSaves: MutableState<List<String>> = mutableStateOf(emptyList())
 
     init {
         refreshSaveList()
