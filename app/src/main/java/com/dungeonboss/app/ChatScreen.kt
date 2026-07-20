@@ -28,7 +28,7 @@ data class UIChatMessage(
 
 class ChatViewModel(context: Context) : ViewModel() {
     private val gameState = GameState(context)
-    private val apiKey = "YOUR_GEMINI_API_KEY" // Replace with actual key from BuildConfig or secure storage
+    private val apiKey = "AQ.Ab8RN6KoWNDvJGLAkKCIYweGI9lWCh49o2we6VwpsJvqcbG4VA" // Replace with actual key from BuildConfig or secure storage
     private val geminiService = GeminiService(apiKey)
     
     private val _uiMessages = mutableStateOf<List<UIChatMessage>>(emptyList())
