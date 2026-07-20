@@ -23,6 +23,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 data class UIChatMessage(
     val role: String,
@@ -39,6 +42,9 @@ class ChatViewModel(context: Context) : ViewModel() {
     
     private val _isLoading = mutableStateOf(false)
     val isLoading: State<Boolean> = _isLoading
+    
+    private val _debugInfo = mutableStateOf<ApiDebugInfo?>(null)
+    val debugInfo: State<ApiDebugInfo?> = _debugInfo
     
     private val _boss = mutableStateOf(gameState.getBoss())
     val boss: State<Boss> = _boss
@@ -87,8 +93,13 @@ class ChatViewModel(context: Context) : ViewModel() {
                 val dungeonGreeting = geminiService.initializeDungeon(_boss.value)
                 _uiMessages.value = listOf(UIChatMessage("dungeon", dungeonGreeting))
                 gameState.addStoryEntry(dungeonGreeting)
+            } catch (e: GeminiApiException) {
+                _debugInfo.value = e.debugInfo
+                _uiMessages.value = listOf(UIChatMessage("system", e.debugInfo.message))
             } catch (e: Exception) {
-                _uiMessages.value = listOf(UIChatMessage("system", "Error: ${e.message}"))
+                val info = ApiDebugInfo(ApiErrorReason.UNKNOWN_ERROR, "An unexpected error occurred.")
+                _debugInfo.value = info
+                _uiMessages.value = listOf(UIChatMessage("system", info.message))
             } finally {
                 _isLoading.value = false
             }
@@ -106,8 +117,13 @@ class ChatViewModel(context: Context) : ViewModel() {
                 val dungeonResponse = geminiService.chat(userInput, _boss.value)
                 _uiMessages.value = _uiMessages.value + UIChatMessage("dungeon", dungeonResponse)
                 gameState.addStoryEntry(dungeonResponse) // Persists data straight into active save slot
+            } catch (e: GeminiApiException) {
+                _debugInfo.value = e.debugInfo
+                _uiMessages.value = _uiMessages.value + UIChatMessage("system", e.debugInfo.message)
             } catch (e: Exception) {
-                _uiMessages.value = _uiMessages.value + UIChatMessage("system", "Error: ${e.message}")
+                val info = ApiDebugInfo(ApiErrorReason.UNKNOWN_ERROR, "An unexpected error occurred.")
+                _debugInfo.value = info
+                _uiMessages.value = _uiMessages.value + UIChatMessage("system", info.message)
             } finally {
                 _isLoading.value = false
             }
@@ -140,11 +156,13 @@ class ChatViewModel(context: Context) : ViewModel() {
 @Composable
 fun ChatScreen(viewModel: ChatViewModel) {
     var userInput by remember { mutableStateOf("") }
-    var showSaveMenu by remember { mutableStateOf(false) } 
+    var showSaveMenu by remember { mutableStateOf(false) }
+    var showDebugCard by remember { mutableStateOf(false) }
     
     val messages = viewModel.uiMessages.value
     val isLoading = viewModel.isLoading.value
     val boss = viewModel.boss.value
+    val debugInfo = viewModel.debugInfo.value
     val listState = rememberLazyListState()
 
     // 🎨 CENTRAL DESIGN GROUP CONTROLS (Purple and Red Vibe)
@@ -252,6 +270,20 @@ fun ChatScreen(viewModel: ChatViewModel) {
                         }
                     }
                 }
+            }
+
+            // Debug panel (collapsible, shown only when debug info is available)
+            if (debugInfo != null) {
+                DebugInfoCard(
+                    debugInfo = debugInfo,
+                    expanded = showDebugCard,
+                    onToggle = { showDebugCard = !showDebugCard },
+                    panelColor = colorMenuBackground,
+                    borderColor = colorBorderActive,
+                    labelColor = colorTextBrightNeon,
+                    bodyColor = colorTextBodyWhite,
+                    fontFamily = FontFamily.SansSerif
+                )
             }
 
             // Input area
@@ -365,6 +397,69 @@ fun ChatScreen(viewModel: ChatViewModel) {
                 shape = RoundedCornerShape(4.dp),
                 modifier = Modifier.padding(16.dp)
             )
+        }
+    }
+}
+
+@Composable
+fun DebugInfoCard(
+    debugInfo: ApiDebugInfo,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    panelColor: Color,
+    borderColor: Color,
+    labelColor: Color,
+    bodyColor: Color,
+    fontFamily: FontFamily
+) {
+    val formatter = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
+    val formattedTime = formatter.format(Date(debugInfo.timestamp))
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+        color = panelColor,
+        shape = RoundedCornerShape(4.dp),
+        border = BorderStroke(1.dp, borderColor)
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onToggle),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Debug ▸ ${debugInfo.reason.name}",
+                    color = labelColor,
+                    fontFamily = fontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
+                Text(
+                    text = if (expanded) "▲" else "▼",
+                    color = labelColor,
+                    fontFamily = fontFamily,
+                    fontSize = 12.sp
+                )
+            }
+            if (expanded) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = debugInfo.message,
+                    color = bodyColor,
+                    fontFamily = fontFamily,
+                    fontSize = 12.sp
+                )
+                Text(
+                    text = "Time: $formattedTime",
+                    color = bodyColor.copy(alpha = 0.6f),
+                    fontFamily = fontFamily,
+                    fontSize = 11.sp
+                )
+            }
         }
     }
 }
