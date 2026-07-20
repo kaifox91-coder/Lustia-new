@@ -10,6 +10,23 @@ data class ChatMessage(
     val content: String
 )
 
+enum class ApiErrorReason {
+    MISSING_API_KEY,
+    INVALID_API_KEY,
+    NETWORK_ERROR,
+    RATE_LIMITED,
+    MODEL_UNAVAILABLE,
+    UNKNOWN_ERROR
+}
+
+data class ApiDebugInfo(
+    val reason: ApiErrorReason,
+    val message: String,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+class GeminiApiException(val debugInfo: ApiDebugInfo) : Exception(debugInfo.message)
+
 class GeminiService(private val apiKey: String) {
     private val model = GenerativeModel(
         modelName = "gemini-3.5-flash",
@@ -20,11 +37,18 @@ class GeminiService(private val apiKey: String) {
         const val MAX_CONTEXT_MESSAGES = 3
         const val MAX_MESSAGE_CHARS = 600
         const val MAX_HISTORY_MESSAGE_CHARS = 220
+        const val MSG_MISSING_KEY =
+            "API key not configured or not seen by the server. Check that the key is set correctly."
+        const val MSG_INVALID_KEY =
+            "API key is invalid, expired, or lacks permission for this service."
     }
 
     private val conversationHistory = mutableListOf<ChatMessage>()
 
     suspend fun initializeDungeon(boss: Boss): String = withContext(Dispatchers.IO) {
+        if (apiKey.isBlank()) {
+            throw GeminiApiException(ApiDebugInfo(ApiErrorReason.MISSING_API_KEY, MSG_MISSING_KEY))
+        }
         val systemPrompt = buildSystemPrompt(boss)
         conversationHistory.clear()
         
@@ -35,7 +59,7 @@ class GeminiService(private val apiKey: String) {
             val result = model.generateContent(content)
             result.text ?: "The stone remains silent."
         } catch (e: Exception) {
-            "Error: ${e.message}"
+            throw GeminiApiException(mapException(e))
         }
         
         conversationHistory.add(ChatMessage("dungeon", response))
@@ -43,6 +67,9 @@ class GeminiService(private val apiKey: String) {
     }
 
     suspend fun chat(userMessage: String, boss: Boss): String = withContext(Dispatchers.IO) {
+        if (apiKey.isBlank()) {
+            throw GeminiApiException(ApiDebugInfo(ApiErrorReason.MISSING_API_KEY, MSG_MISSING_KEY))
+        }
         conversationHistory.add(ChatMessage("user", userMessage))
 
         val systemPrompt = buildSystemPrompt(boss)
@@ -69,7 +96,7 @@ DUNGEON RESPONSE:
             conversationHistory.add(ChatMessage("dungeon", dungeonResponse))
             dungeonResponse
         } catch (e: Exception) {
-            "Error: ${e.message}"
+            throw GeminiApiException(mapException(e))
         }
     }
 
@@ -146,6 +173,45 @@ TONE GUIDE:
         } else {
             message.take(MAX_HISTORY_MESSAGE_CHARS) + "..."
         }
+    }
+
+    private fun mapException(e: Exception): ApiDebugInfo {
+        val msg = e.message ?: ""
+        val reason = when {
+            // Blank key caught here as a safety net (early checks in callers cover most cases)
+            apiKey.isBlank() -> ApiErrorReason.MISSING_API_KEY
+            // Network-level failures
+            e is java.net.UnknownHostException ||
+            e is java.net.SocketTimeoutException ||
+            e is java.io.IOException -> ApiErrorReason.NETWORK_ERROR
+            // "Unregistered callers" / METHOD_NOT_ALLOWED: server never saw a valid key.
+            // Must be checked before the generic auth-rejection branch below.
+            msg.contains("unregistered", ignoreCase = true) ||
+            msg.contains("METHOD_NOT_ALLOWED", ignoreCase = true) -> ApiErrorReason.MISSING_API_KEY
+            // Explicit authentication rejection: key present but invalid / expired / no permission
+            msg.contains("API_KEY_INVALID", ignoreCase = true) ||
+            msg.contains("401") ||
+            msg.contains("UNAUTHENTICATED", ignoreCase = true) ||
+            msg.contains("PERMISSION_DENIED", ignoreCase = true) -> ApiErrorReason.INVALID_API_KEY
+            // Rate limiting / quota exhaustion
+            msg.contains("429") ||
+            msg.contains("RESOURCE_EXHAUSTED", ignoreCase = true) ||
+            msg.contains("quota", ignoreCase = true) -> ApiErrorReason.RATE_LIMITED
+            // Model not available or not found
+            msg.contains("404") ||
+            msg.contains("MODEL_NOT_FOUND", ignoreCase = true) ||
+            msg.contains("not found", ignoreCase = true) -> ApiErrorReason.MODEL_UNAVAILABLE
+            else -> ApiErrorReason.UNKNOWN_ERROR
+        }
+        val safeMessage = when (reason) {
+            ApiErrorReason.MISSING_API_KEY -> MSG_MISSING_KEY
+            ApiErrorReason.INVALID_API_KEY -> MSG_INVALID_KEY
+            ApiErrorReason.NETWORK_ERROR -> "Network connection failed."
+            ApiErrorReason.RATE_LIMITED -> "Service is rate limited. Please wait before retrying."
+            ApiErrorReason.MODEL_UNAVAILABLE -> "The AI model is currently unavailable."
+            ApiErrorReason.UNKNOWN_ERROR -> "An unexpected error occurred."
+        }
+        return ApiDebugInfo(reason = reason, message = safeMessage)
     }
 
     fun clearHistory() {
