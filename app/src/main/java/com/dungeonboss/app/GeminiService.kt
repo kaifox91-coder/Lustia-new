@@ -37,13 +37,17 @@ class GeminiService(private val apiKey: String) {
         const val MAX_CONTEXT_MESSAGES = 3
         const val MAX_MESSAGE_CHARS = 600
         const val MAX_HISTORY_MESSAGE_CHARS = 220
+        const val MSG_MISSING_KEY =
+            "API key not configured or not seen by the server. Check that the key is set correctly."
+        const val MSG_INVALID_KEY =
+            "API key is invalid, expired, or lacks permission for this service."
     }
 
     private val conversationHistory = mutableListOf<ChatMessage>()
 
     suspend fun initializeDungeon(boss: Boss): String = withContext(Dispatchers.IO) {
         if (apiKey.isBlank()) {
-            throw GeminiApiException(ApiDebugInfo(ApiErrorReason.MISSING_API_KEY, "API key not configured."))
+            throw GeminiApiException(ApiDebugInfo(ApiErrorReason.MISSING_API_KEY, MSG_MISSING_KEY))
         }
         val systemPrompt = buildSystemPrompt(boss)
         conversationHistory.clear()
@@ -64,7 +68,7 @@ class GeminiService(private val apiKey: String) {
 
     suspend fun chat(userMessage: String, boss: Boss): String = withContext(Dispatchers.IO) {
         if (apiKey.isBlank()) {
-            throw GeminiApiException(ApiDebugInfo(ApiErrorReason.MISSING_API_KEY, "API key not configured."))
+            throw GeminiApiException(ApiDebugInfo(ApiErrorReason.MISSING_API_KEY, MSG_MISSING_KEY))
         }
         conversationHistory.add(ChatMessage("user", userMessage))
 
@@ -172,26 +176,38 @@ TONE GUIDE:
     }
 
     private fun mapException(e: Exception): ApiDebugInfo {
+        val msg = e.message ?: ""
         val reason = when {
+            // Blank key caught here as a safety net (early checks in callers cover most cases)
             apiKey.isBlank() -> ApiErrorReason.MISSING_API_KEY
+            // Network-level failures
             e is java.net.UnknownHostException ||
             e is java.net.SocketTimeoutException ||
             e is java.io.IOException -> ApiErrorReason.NETWORK_ERROR
-            e.message?.contains("API_KEY_INVALID", ignoreCase = true) == true ||
-            e.message?.contains("401") == true ||
-            e.message?.contains("403") == true ||
-            e.message?.contains("UNAUTHENTICATED", ignoreCase = true) == true -> ApiErrorReason.INVALID_API_KEY
-            e.message?.contains("429") == true ||
-            e.message?.contains("RESOURCE_EXHAUSTED", ignoreCase = true) == true ||
-            e.message?.contains("quota", ignoreCase = true) == true -> ApiErrorReason.RATE_LIMITED
-            e.message?.contains("404") == true ||
-            e.message?.contains("MODEL_NOT_FOUND", ignoreCase = true) == true ||
-            e.message?.contains("not found", ignoreCase = true) == true -> ApiErrorReason.MODEL_UNAVAILABLE
+            // 403 "unregistered callers" means the gateway never saw a valid key —
+            // treat as MISSING_API_KEY (key not transmitted / not recognized by server)
+            msg.contains("403") && msg.contains("unregistered", ignoreCase = true) -> ApiErrorReason.MISSING_API_KEY
+            msg.contains("unregistered callers", ignoreCase = true) -> ApiErrorReason.MISSING_API_KEY
+            msg.contains("METHOD_NOT_ALLOWED", ignoreCase = true) -> ApiErrorReason.MISSING_API_KEY
+            // Explicit authentication rejection: key present but invalid / expired
+            msg.contains("API_KEY_INVALID", ignoreCase = true) ||
+            msg.contains("401") ||
+            msg.contains("403") ||
+            msg.contains("UNAUTHENTICATED", ignoreCase = true) ||
+            msg.contains("PERMISSION_DENIED", ignoreCase = true) -> ApiErrorReason.INVALID_API_KEY
+            // Rate limiting / quota exhaustion
+            msg.contains("429") ||
+            msg.contains("RESOURCE_EXHAUSTED", ignoreCase = true) ||
+            msg.contains("quota", ignoreCase = true) -> ApiErrorReason.RATE_LIMITED
+            // Model not available or not found
+            msg.contains("404") ||
+            msg.contains("MODEL_NOT_FOUND", ignoreCase = true) ||
+            msg.contains("not found", ignoreCase = true) -> ApiErrorReason.MODEL_UNAVAILABLE
             else -> ApiErrorReason.UNKNOWN_ERROR
         }
         val safeMessage = when (reason) {
-            ApiErrorReason.MISSING_API_KEY -> "API key not configured."
-            ApiErrorReason.INVALID_API_KEY -> "API key is invalid or has expired."
+            ApiErrorReason.MISSING_API_KEY -> MSG_MISSING_KEY
+            ApiErrorReason.INVALID_API_KEY -> MSG_INVALID_KEY
             ApiErrorReason.NETWORK_ERROR -> "Network connection failed."
             ApiErrorReason.RATE_LIMITED -> "Service is rate limited. Please wait before retrying."
             ApiErrorReason.MODEL_UNAVAILABLE -> "The AI model is currently unavailable."
