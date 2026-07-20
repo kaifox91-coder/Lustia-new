@@ -2,6 +2,17 @@ package com.dungeonboss.app
 
 import kotlinx.serialization.Serializable
 
+data class ChatMessage(
+    val role: String,
+    val content: String
+)
+
+data class UIChatMessage(
+    val role: String,
+    val content: String,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
 @Serializable
 data class BossStats(
     val size: String = "Average",

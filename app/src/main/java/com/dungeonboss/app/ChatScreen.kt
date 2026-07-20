@@ -20,12 +20,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-data class UIChatMessage(
-    val role: String,
-    val content: String,
-    val timestamp: Long = System.currentTimeMillis()
-)
-
 @Composable
 fun ChatScreen(viewModel: ChatViewModel) {
     var userInput by remember { mutableStateOf("") }

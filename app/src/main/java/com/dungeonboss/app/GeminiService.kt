@@ -5,11 +5,6 @@ import com.google.ai.client.generativeai.type.content
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-data class ChatMessage(
-    val role: String,
-    val content: String
-)
-
 class GeminiService(private val apiKey: String) {
     private val model = GenerativeModel(
         modelName = "gemini-3.5-flash",
