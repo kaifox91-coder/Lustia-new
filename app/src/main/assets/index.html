@@ -101,14 +101,21 @@
             if (!key) return reject("Missing API Key entry configuration.");
             
             const geminiPayload = { contents: [{ role: "user", parts: [{ text: promptText }] }] };
-            fetch(`https://googleapis.com{key}`, {
+            fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(key)}`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(geminiPayload)
             })
-            .then(r => r.json())
-            .then(data => {
-              const txt = data.candidates?.[0]?.content?.parts?.[0]?.text || JSON.stringify(data);
+            .then(r => {
+              const ok = r.ok, status = r.status;
+              return r.json().then(data => ({ ok, status, data })).catch(() => ({ ok, status, data: null }));
+            })
+            .then(({ ok, status, data }) => {
+              if (!ok) {
+                const apiMsg = data?.error?.message || (data ? JSON.stringify(data) : `HTTP ${status}`);
+                return reject(`API error ${status}: ${apiMsg}`);
+              }
+              const txt = data?.candidates?.[0]?.content?.parts?.[0]?.text || (data ? JSON.stringify(data) : 'No response data.');
               resolve({ text: txt });
             })
             .catch(reject);
