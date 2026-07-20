@@ -42,6 +42,9 @@ class GeminiService(private val apiKey: String) {
     private val conversationHistory = mutableListOf<ChatMessage>()
 
     suspend fun initializeDungeon(boss: Boss): String = withContext(Dispatchers.IO) {
+        if (apiKey.isBlank()) {
+            throw GeminiApiException(ApiDebugInfo(ApiErrorReason.MISSING_API_KEY, "API key not configured."))
+        }
         val systemPrompt = buildSystemPrompt(boss)
         conversationHistory.clear()
         
@@ -60,6 +63,9 @@ class GeminiService(private val apiKey: String) {
     }
 
     suspend fun chat(userMessage: String, boss: Boss): String = withContext(Dispatchers.IO) {
+        if (apiKey.isBlank()) {
+            throw GeminiApiException(ApiDebugInfo(ApiErrorReason.MISSING_API_KEY, "API key not configured."))
+        }
         conversationHistory.add(ChatMessage("user", userMessage))
 
         val systemPrompt = buildSystemPrompt(boss)

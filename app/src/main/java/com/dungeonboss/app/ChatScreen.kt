@@ -97,7 +97,7 @@ class ChatViewModel(context: Context) : ViewModel() {
                 _debugInfo.value = e.debugInfo
                 _uiMessages.value = listOf(UIChatMessage("system", e.debugInfo.message))
             } catch (e: Exception) {
-                val info = ApiDebugInfo(ApiErrorReason.UNKNOWN_ERROR, "An unexpected error occurred.")
+                val info = unknownDebugInfo()
                 _debugInfo.value = info
                 _uiMessages.value = listOf(UIChatMessage("system", info.message))
             } finally {
@@ -121,7 +121,7 @@ class ChatViewModel(context: Context) : ViewModel() {
                 _debugInfo.value = e.debugInfo
                 _uiMessages.value = _uiMessages.value + UIChatMessage("system", e.debugInfo.message)
             } catch (e: Exception) {
-                val info = ApiDebugInfo(ApiErrorReason.UNKNOWN_ERROR, "An unexpected error occurred.")
+                val info = unknownDebugInfo()
                 _debugInfo.value = info
                 _uiMessages.value = _uiMessages.value + UIChatMessage("system", info.message)
             } finally {
@@ -151,13 +151,16 @@ class ChatViewModel(context: Context) : ViewModel() {
         _uiMessages.value = emptyList()
         initializeDungeon()
     }
+
+    private fun unknownDebugInfo() =
+        ApiDebugInfo(ApiErrorReason.UNKNOWN_ERROR, "An unexpected error occurred.")
 }
 
 @Composable
 fun ChatScreen(viewModel: ChatViewModel) {
     var userInput by remember { mutableStateOf("") }
     var showSaveMenu by remember { mutableStateOf(false) }
-    var showDebugCard by remember { mutableStateOf(false) }
+    var showDebugCard by remember { mutableStateOf(true) }
     
     val messages = viewModel.uiMessages.value
     val isLoading = viewModel.isLoading.value
