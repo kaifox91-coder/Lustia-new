@@ -8,7 +8,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -18,6 +17,7 @@ fun CharacterCreationScreen(
     onCreationComplete: (Boss) -> Unit,
     gameState: GameState
 ) {
+    val cs = MaterialTheme.colorScheme
     var currentStep by remember { mutableStateOf(gameState.getCreationStep()) }
 
     var name by remember { mutableStateOf("") }
@@ -69,24 +69,24 @@ fun CharacterCreationScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF1A1A2E))
+            .background(cs.background)
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
         LinearProgressIndicator(
-            progress = { currentStep / 7f },
+            progress = currentStep / 7f,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(8.dp),
-            color = Color(0xFFD4AF37),
-            trackColor = Color(0xFF333333)
+            color = cs.primary,
+            trackColor = cs.surfaceVariant
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
             text = "STEP $currentStep — ${getStepTitle(currentStep)}",
-            color = Color(0xFFD4AF37),
+            color = cs.primary,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold
         )
@@ -102,12 +102,10 @@ fun CharacterCreationScreen(
                 gender = gender, onGenderChange = { gender = it },
                 appearance = appearance, onAppearanceChange = { appearance = it }
             )
-
             2 -> Step2Screen(
                 setting = setting, onSettingChange = { setting = it },
                 floorTheme = floorTheme, onFloorThemeChange = { floorTheme = it }
             )
-
             3 -> Step3Screen(
                 bosspower = bosspower, onBossPowerChange = { bosspower = it },
                 skill1 = skill1, onSkill1Change = { skill1 = it },
@@ -120,7 +118,6 @@ fun CharacterCreationScreen(
                 spell2 = spell2, onSpell2Change = { spell2 = it },
                 spell3 = spell3, onSpell3Change = { spell3 = it }
             )
-
             4 -> Step4Screen(
                 size = size, onSizeChange = { size = it },
                 physique = physique, onPhysiqueChange = { physique = it },
@@ -142,11 +139,9 @@ fun CharacterCreationScreen(
                 arcana = arcana, onArcanaChange = { arcana = it },
                 manaSurge = manaSurge, onManaSurgeChange = { manaSurge = it }
             )
-
             5 -> Step5Screen(
                 dungeonVoice = dungeonVoice, onDungeonVoiceChange = { dungeonVoice = it }
             )
-
             6 -> Step6Screen()
             7 -> Step7Screen()
         }
@@ -155,7 +150,7 @@ fun CharacterCreationScreen(
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = validationError,
-                color = Color(0xFFFF6B6B),
+                color = cs.error,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -174,8 +169,10 @@ fun CharacterCreationScreen(
                 },
                 enabled = currentStep > 1,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF666666),
-                    disabledContainerColor = Color(0xFF333333)
+                    containerColor = cs.surfaceVariant,
+                    contentColor = cs.onSurfaceVariant,
+                    disabledContainerColor = cs.surfaceVariant.copy(alpha = 0.5f),
+                    disabledContentColor = cs.onSurfaceVariant.copy(alpha = 0.6f)
                 )
             ) {
                 Text("BACK")
@@ -189,10 +186,11 @@ fun CharacterCreationScreen(
                         currentStep++
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFD4AF37)
+                        containerColor = cs.primary,
+                        contentColor = cs.onPrimary
                     )
                 ) {
-                    Text("NEXT", color = Color.Black, fontWeight = FontWeight.Bold)
+                    Text("NEXT", fontWeight = FontWeight.Bold)
                 }
             } else {
                 Button(
@@ -244,10 +242,11 @@ fun CharacterCreationScreen(
                         onCreationComplete(boss)
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF6B1124)
+                        containerColor = cs.tertiary,
+                        contentColor = cs.onTertiary
                     )
                 ) {
-                    Text("COMPLETE", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("COMPLETE", fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -272,8 +271,9 @@ fun CreationInputField(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val cs = MaterialTheme.colorScheme
     Column(modifier = modifier) {
-        Text(label, color = Color(0xFFD4AF37), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Text(label, color = cs.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         TextField(
             value = value,
             onValueChange = onValueChange,
@@ -281,10 +281,15 @@ fun CreationInputField(
                 .fillMaxWidth()
                 .padding(vertical = 4.dp),
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color(0xFF0F3460),
-                unfocusedContainerColor = Color(0xFF0F3460),
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White
+                focusedContainerColor = cs.surface,
+                unfocusedContainerColor = cs.surface,
+                focusedTextColor = cs.onSurface,
+                unfocusedTextColor = cs.onSurface,
+                focusedIndicatorColor = cs.primary,
+                unfocusedIndicatorColor = cs.outline,
+                focusedLabelColor = cs.primary,
+                unfocusedLabelColor = cs.onSurfaceVariant,
+                cursorColor = cs.primary
             )
         )
     }
@@ -333,17 +338,18 @@ fun Step3Screen(
     spell2: String, onSpell2Change: (String) -> Unit,
     spell3: String, onSpell3Change: (String) -> Unit
 ) {
+    val cs = MaterialTheme.colorScheme
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         CreationInputField("Boss Power (your defining ability)", bosspower, onBossPowerChange)
-        Text("Skills", color = Color(0xFFD4AF37), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        Text("Skills", color = cs.primary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
         CreationInputField("Skill 1", skill1, onSkill1Change)
         CreationInputField("Skill 2", skill2, onSkill2Change)
         CreationInputField("Skill 3", skill3, onSkill3Change)
-        Text("Techniques", color = Color(0xFFD4AF37), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        Text("Techniques", color = cs.primary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
         CreationInputField("Technique 1", technique1, onTechnique1Change)
         CreationInputField("Technique 2", technique2, onTechnique2Change)
         CreationInputField("Technique 3", technique3, onTechnique3Change)
-        Text("Spells (Optional)", color = Color(0xFFD4AF37), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        Text("Spells (Optional)", color = cs.primary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
         CreationInputField("Spell 1", spell1, onSpell1Change)
         CreationInputField("Spell 2", spell2, onSpell2Change)
         CreationInputField("Spell 3", spell3, onSpell3Change)
@@ -419,10 +425,11 @@ fun Step4Screen(
 fun Step5Screen(
     dungeonVoice: String, onDungeonVoiceChange: (String) -> Unit
 ) {
+    val cs = MaterialTheme.colorScheme
     val voiceOptions = listOf("Chronicle", "Advisor", "Witness", "Fondly Tired", "Custom")
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("How should the Dungeon speak to you?", color = Color(0xFFD4AF37), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        Text("How should the Dungeon speak to you?", color = cs.primary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
         voiceOptions.forEach { voice ->
             Row(
                 modifier = Modifier
@@ -433,10 +440,10 @@ fun Step5Screen(
                 RadioButton(
                     selected = dungeonVoice == voice,
                     onClick = { onDungeonVoiceChange(voice) },
-                    colors = RadioButtonDefaults.colors(selectedColor = Color(0xFFD4AF37))
+                    colors = RadioButtonDefaults.colors(selectedColor = cs.primary)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(voice, color = Color.White)
+                Text(voice, color = cs.onSurface)
             }
         }
     }
@@ -444,12 +451,18 @@ fun Step5Screen(
 
 @Composable
 fun Step6Screen() {
-    Text("NSFW options are optional — skip to proceed to floor configuration.", color = Color(0xFFCCCCCC))
+    Text(
+        "NSFW options are optional — skip to proceed to floor configuration.",
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }
 
 @Composable
 fun Step7Screen() {
-    Text("You can customize your floor traps and minions after creation using #traps and #minions commands.", color = Color(0xFFCCCCCC))
+    Text(
+        "You can customize your floor traps and minions after creation using #traps and #minions commands.",
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -460,6 +473,7 @@ fun StatDropdown(
     options: List<String>,
     onSelectionChange: (String) -> Unit
 ) {
+    val cs = MaterialTheme.colorScheme
     var expanded by remember { mutableStateOf(false) }
 
     ExposedDropdownMenuBox(
@@ -470,22 +484,22 @@ fun StatDropdown(
             value = selected.ifEmpty { "Select..." },
             onValueChange = {},
             readOnly = true,
-            label = { Text(label, color = Color(0xFFD4AF37)) },
+            label = { Text(label, color = cs.primary) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .menuAnchor()
                 .fillMaxWidth()
                 .padding(vertical = 4.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color(0xFFD4AF37),
-                unfocusedBorderColor = Color(0xFF666666),
-                focusedContainerColor = Color(0xFF0F3460),
-                unfocusedContainerColor = Color(0xFF0F3460),
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
-                focusedLabelColor = Color(0xFFD4AF37),
-                unfocusedLabelColor = Color(0xFFD4AF37),
-                cursorColor = Color(0xFFD4AF37)
+                focusedBorderColor = cs.primary,
+                unfocusedBorderColor = cs.outline,
+                focusedContainerColor = cs.surface,
+                unfocusedContainerColor = cs.surface,
+                focusedTextColor = cs.onSurface,
+                unfocusedTextColor = cs.onSurface,
+                focusedLabelColor = cs.primary,
+                unfocusedLabelColor = cs.onSurfaceVariant,
+                cursorColor = cs.primary
             )
         )
 
@@ -495,7 +509,7 @@ fun StatDropdown(
         ) {
             options.forEach { option ->
                 DropdownMenuItem(
-                    text = { Text(option, color = Color.White) },
+                    text = { Text(option, color = cs.onSurface) },
                     onClick = {
                         onSelectionChange(option)
                         expanded = false
