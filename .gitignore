@@ -1,0 +1,8 @@
+# Added by ChatGPT
+local.properties
+*.keystore
+*.jks
+.env
+.env.*
+secrets.properties
+/gradle.properties
