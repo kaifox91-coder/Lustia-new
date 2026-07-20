@@ -36,7 +36,7 @@ data class Boss(
     val abilities: List<String> = emptyList(),
     val legendaryActions: Int = 0,
     val customRules: List<String> = emptyList(),
-    val name: String = "Unnamed Boss",
+    val name: String = "",
     val race: String = "",
     val age: Int = 0,
     val height: String = "",
