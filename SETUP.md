@@ -75,30 +75,22 @@ cd Lustia-new
 
 ## STEP 5: Add API Key Securely (Recommended)
 
-1. Create or edit your Gradle user properties file:
-   - macOS/Linux: `~/.gradle/gradle.properties`
-   - Windows: `%USERPROFILE%\\.gradle\\gradle.properties`
+The API key is stored in a **standalone `secrets.properties` file** at the project root.
+This file is git-ignored so your key is never committed to the repository.
 
-2. Add your key:
+1. In the project root, copy the example file:
+   ```bash
+   cp secrets.properties.example secrets.properties
+   ```
+
+2. Open `secrets.properties` and replace the placeholder with your real key:
    ```properties
    GEMINI_API_KEY=AIzaSy_YOUR_ACTUAL_KEY_HERE
    ```
 
-3. In `app/build.gradle`, expose it in BuildConfig:
-   ```gradle
-   android {
-       defaultConfig {
-           buildConfigField "String", "GEMINI_API_KEY", "\"${project.findProperty("GEMINI_API_KEY") ?: ""}\""
-       }
-   }
-   ```
+3. Sync Gradle and rebuild — `app/build.gradle` reads the key automatically from `secrets.properties`.
 
-4. In app code, initialize Gemini with BuildConfig:
-   ```kotlin
-   val geminiService = GeminiService(BuildConfig.GEMINI_API_KEY)
-   ```
-
-5. Sync Gradle and rebuild.
+> **CI/CD**: Place a `secrets.properties` file with your key in the project root before running the build. The workflow reads it the same way as a local build — no GitHub Secrets wiring required.
 
 > Do **not** place API keys directly in Kotlin source files.
 

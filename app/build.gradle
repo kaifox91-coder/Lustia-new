@@ -15,7 +15,23 @@ android {
         versionCode 1
         versionName '1.0'
 
-        def geminiApiKey = project.findProperty("GEMINI_API_KEY") ?: System.getenv("GEMINI_API_KEY") ?: ""
+        // Load API key from secrets.properties (local dev) or GEMINI_API_KEY env var (CI/CD).
+        // To set up locally: copy secrets.properties.example -> secrets.properties and fill in your key.
+        def secretsFile = rootProject.file("secrets.properties")
+        def geminiApiKey = ""
+        if (secretsFile.exists()) {
+            def secrets = new Properties()
+            secretsFile.withInputStream { secrets.load(it) }
+            geminiApiKey = secrets.getProperty("GEMINI_API_KEY", "")
+        }
+        if (!geminiApiKey) {
+            geminiApiKey = System.getenv("GEMINI_API_KEY") ?: ""
+        }
+        if (!geminiApiKey) {
+            logger.warn("\n[WARNING] GEMINI_API_KEY is not set. " +
+                "Copy secrets.properties.example to secrets.properties and add your key, " +
+                "or set the GEMINI_API_KEY environment variable.\n")
+        }
         buildConfigField "String", "GEMINI_API_KEY", "\"${geminiApiKey}\""
     }
 

@@ -36,17 +36,9 @@ jobs:
           echo "Scanning all repository text files for hidden clipboard characters..."
           find . -type f -not -path '*/.*' -exec grep -Iq . {} \; -exec sed -i 's/\x00//g' {} +
 
-      - name: Build with local placeholder key file (no workflow secret mapping)
+      - name: Build APK
         shell: bash
         run: |
-          mkdir -p ~/.gradle
-
-          if [ ! -f ~/.gradle/gradle.properties ]; then
-            printf "GEMINI_API_KEY=\n" > ~/.gradle/gradle.properties
-          elif ! grep -q '^GEMINI_API_KEY=' ~/.gradle/gradle.properties; then
-            printf "\nGEMINI_API_KEY=\n" >> ~/.gradle/gradle.properties
-          fi
-
           gradle assembleDebug -p "$GITHUB_WORKSPACE" -Pandroid.useAndroidX=true --no-daemon --no-build-cache --stacktrace
         env:
           GRADLE_OPTS: -Xmx1536m -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=1 -Dorg.gradle.daemon=false
