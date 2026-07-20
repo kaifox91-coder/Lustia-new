@@ -64,6 +64,7 @@ fun CharacterCreationScreen(
     var manaSurge by remember { mutableStateOf("Lake") }
 
     var dungeonVoice by remember { mutableStateOf("Chronicle") }
+    var customDungeonVoice by remember { mutableStateOf("") }
     var validationError by remember { mutableStateOf("") }
 
     Column(
@@ -140,7 +141,13 @@ fun CharacterCreationScreen(
                 manaSurge = manaSurge, onManaSurgeChange = { manaSurge = it }
             )
             5 -> Step5Screen(
-                dungeonVoice = dungeonVoice, onDungeonVoiceChange = { dungeonVoice = it }
+                dungeonVoice = dungeonVoice,
+                onDungeonVoiceChange = { selected ->
+                    dungeonVoice = selected
+                    if (selected != "Custom") customDungeonVoice = ""
+                },
+                customDungeonVoice = customDungeonVoice,
+                onCustomDungeonVoiceChange = { customDungeonVoice = it }
             )
             6 -> Step6Screen()
             7 -> Step7Screen()
@@ -201,6 +208,11 @@ fun CharacterCreationScreen(
                             return@Button
                         }
 
+                        if (dungeonVoice == "Custom" && customDungeonVoice.isBlank()) {
+                            validationError = "Please enter a custom dungeon voice before completing creation."
+                            return@Button
+                        }
+
                         val boss = Boss(
                             name = name,
                             race = race,
@@ -235,7 +247,7 @@ fun CharacterCreationScreen(
                                 arcana = arcana,
                                 manaSurge = manaSurge
                             ),
-                            dungeonVoice = dungeonVoice
+                            dungeonVoice = if (dungeonVoice == "Custom") customDungeonVoice.trim() else dungeonVoice
                         )
                         gameState.updateBoss(boss)
                         gameState.setCreationStep(0)
@@ -423,7 +435,10 @@ fun Step4Screen(
 
 @Composable
 fun Step5Screen(
-    dungeonVoice: String, onDungeonVoiceChange: (String) -> Unit
+    dungeonVoice: String,
+    onDungeonVoiceChange: (String) -> Unit,
+    customDungeonVoice: String,
+    onCustomDungeonVoiceChange: (String) -> Unit
 ) {
     val cs = MaterialTheme.colorScheme
     val voiceOptions = listOf("Chronicle", "Advisor", "Witness", "Fondly Tired", "Custom")
@@ -445,6 +460,14 @@ fun Step5Screen(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(voice, color = cs.onSurface)
             }
+        }
+
+        if (dungeonVoice == "Custom") {
+            CreationInputField(
+                label = "Custom Dungeon Voice",
+                value = customDungeonVoice,
+                onValueChange = onCustomDungeonVoiceChange
+            )
         }
     }
 }
