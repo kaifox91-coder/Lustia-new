@@ -88,14 +88,14 @@ cd Lustia-new
    ```gradle
    android {
        defaultConfig {
-           buildConfigField "String", "TEST_API_KEY", "\"${project.findProperty("GEMINI_API_KEY") ?: ""}\""
+           buildConfigField "String", "GEMINI_API_KEY", "\"${project.findProperty("GEMINI_API_KEY") ?: ""}\""
        }
    }
    ```
 
 4. In app code, initialize Gemini with BuildConfig:
    ```kotlin
-   val geminiService = GeminiService(BuildConfig.TEST_API_KEY)
+   val geminiService = GeminiService(BuildConfig.GEMINI_API_KEY)
    ```
 
 5. Sync Gradle and rebuild.

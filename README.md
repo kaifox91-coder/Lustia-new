@@ -42,14 +42,14 @@ Then in `app/build.gradle`, expose it through BuildConfig:
 ```gradle
 android {
     defaultConfig {
-        buildConfigField "String", "TEST_API_KEY", "\"${project.findProperty("GEMINI_API_KEY") ?: ""}\""
+        buildConfigField "String", "GEMINI_API_KEY", "\"${project.findProperty("GEMINI_API_KEY") ?: ""}\""
     }
 }
 ```
 
 Use it in code:
 ```kotlin
-val geminiService = GeminiService(BuildConfig.TEST_API_KEY)
+val geminiService = GeminiService(BuildConfig.GEMINI_API_KEY)
 ```
 
 > Never commit secrets to source files.
@@ -118,8 +118,8 @@ app/src/main/AndroidManifest.xml # Internet permissions
 Use user-level Gradle properties + BuildConfig:
 
 1. Put `GEMINI_API_KEY=...` in `~/.gradle/gradle.properties`
-2. Expose with `BuildConfig.TEST_API_KEY` in `app/build.gradle`
-3. Inject via `GeminiService(BuildConfig.TEST_API_KEY)`
+2. Expose with `BuildConfig.GEMINI_API_KEY` in `app/build.gradle`
+3. Inject via `GeminiService(BuildConfig.GEMINI_API_KEY)`
 
 ### Customizing the Dungeon's Voice
 Edit `GeminiService.kt` line 41-62 to change the system prompt and dungeon personality.
