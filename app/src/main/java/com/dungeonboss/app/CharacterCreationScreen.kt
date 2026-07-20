@@ -1,9 +1,7 @@
 package com.dungeonboss.app
 
-import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -21,30 +19,30 @@ fun CharacterCreationScreen(
     gameState: GameState
 ) {
     var currentStep by remember { mutableStateOf(gameState.getCreationStep()) }
-    
+
     var name by remember { mutableStateOf("") }
     var race by remember { mutableStateOf("") }
     var age by remember { mutableStateOf("") }
     var height by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("") }
     var appearance by remember { mutableStateOf("") }
-    
+
     var setting by remember { mutableStateOf("") }
     var floorTheme by remember { mutableStateOf("") }
     var bosspower by remember { mutableStateOf("") }
-    
+
     var skill1 by remember { mutableStateOf("") }
     var skill2 by remember { mutableStateOf("") }
     var skill3 by remember { mutableStateOf("") }
-    
+
     var technique1 by remember { mutableStateOf("") }
     var technique2 by remember { mutableStateOf("") }
     var technique3 by remember { mutableStateOf("") }
-    
+
     var spell1 by remember { mutableStateOf("") }
     var spell2 by remember { mutableStateOf("") }
     var spell3 by remember { mutableStateOf("") }
-    
+
     var size by remember { mutableStateOf("Average") }
     var physique by remember { mutableStateOf("Fit") }
     var resilience by remember { mutableStateOf("Tough") }
@@ -64,8 +62,9 @@ fun CharacterCreationScreen(
     var minionCommand by remember { mutableStateOf("Feared") }
     var arcana by remember { mutableStateOf("Versed") }
     var manaSurge by remember { mutableStateOf("Lake") }
-    
+
     var dungeonVoice by remember { mutableStateOf("Chronicle") }
+    var validationError by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
@@ -74,25 +73,24 @@ fun CharacterCreationScreen(
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
-        // Progress indicator
         LinearProgressIndicator(
-            progress = (currentStep / 7f),
+            progress = { currentStep / 7f },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(8.dp),
             color = Color(0xFFD4AF37),
             trackColor = Color(0xFF333333)
         )
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         Text(
             text = "STEP $currentStep — ${getStepTitle(currentStep)}",
             color = Color(0xFFD4AF37),
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold
         )
-        
+
         Spacer(modifier = Modifier.height(12.dp))
 
         when (currentStep) {
@@ -104,10 +102,12 @@ fun CharacterCreationScreen(
                 gender = gender, onGenderChange = { gender = it },
                 appearance = appearance, onAppearanceChange = { appearance = it }
             )
+
             2 -> Step2Screen(
                 setting = setting, onSettingChange = { setting = it },
                 floorTheme = floorTheme, onFloorThemeChange = { floorTheme = it }
             )
+
             3 -> Step3Screen(
                 bosspower = bosspower, onBossPowerChange = { bosspower = it },
                 skill1 = skill1, onSkill1Change = { skill1 = it },
@@ -120,6 +120,7 @@ fun CharacterCreationScreen(
                 spell2 = spell2, onSpell2Change = { spell2 = it },
                 spell3 = spell3, onSpell3Change = { spell3 = it }
             )
+
             4 -> Step4Screen(
                 size = size, onSizeChange = { size = it },
                 physique = physique, onPhysiqueChange = { physique = it },
@@ -141,22 +142,36 @@ fun CharacterCreationScreen(
                 arcana = arcana, onArcanaChange = { arcana = it },
                 manaSurge = manaSurge, onManaSurgeChange = { manaSurge = it }
             )
+
             5 -> Step5Screen(
                 dungeonVoice = dungeonVoice, onDungeonVoiceChange = { dungeonVoice = it }
             )
+
             6 -> Step6Screen()
             7 -> Step7Screen()
         }
 
+        if (validationError.isNotBlank()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = validationError,
+                color = Color(0xFFFF6B6B),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Navigation buttons
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Button(
-                onClick = { if (currentStep > 1) currentStep-- },
+                onClick = {
+                    validationError = ""
+                    if (currentStep > 1) currentStep--
+                },
                 enabled = currentStep > 1,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF666666),
@@ -168,9 +183,10 @@ fun CharacterCreationScreen(
 
             if (currentStep < 7) {
                 Button(
-                    onClick = { 
+                    onClick = {
+                        validationError = ""
                         gameState.setCreationStep(currentStep + 1)
-                        currentStep++ 
+                        currentStep++
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFFD4AF37)
@@ -180,54 +196,59 @@ fun CharacterCreationScreen(
                 }
             } else {
                 Button(
-    onClick = {
-        val boss = Boss(
-            name = name,
-            race = race,
-            age = age.toIntOrNull() ?: 0,
-            height = height,
-            gender = gender,
-            appearance = appearance,
-            setting = setting,
-            floorTheme = floorTheme,
-            bosspower = bosspower,
-            skills = listOf(skill1, skill2, skill3).filter { it.isNotEmpty() },
-            techniques = listOf(technique1, technique2, technique3).filter { it.isNotEmpty() },
-            spells = listOf(spell1, spell2, spell3).filter { it.isNotEmpty() },
-            stats = BossStats(
-                size = size,
-                physique = physique,
-                resilience = resilience,
-                willpower = willpower,
-                speed = speed,
-                agility = agility,
-                reflexes = reflexes,
-                weaponHandling = weaponHandling,
-                tactics = tactics,
-                aim = aim,
-                charisma = charisma,
-                deception = deception,
-                seduction = seduction,
-                manipulation = manipulation,
-                trapCraft = trapCraft,
-                floorKnowledge = floorKnowledge,
-                minionCommand = minionCommand,
-                arcana = arcana,
-                manaSurge = manaSurge
-            ),
-            dungeonVoice = dungeonVoice
-        )
-        gameState.updateBoss(boss)
-        gameState.setCreationStep(0)
-        onCreationComplete(boss)
-    },
-    colors = ButtonDefaults.buttonColors(
-        containerColor = Color(0xFF6B1124) // 🔮 Updated to your deep crimson layout color!
-    )
-) {
-    Text("COMPLETE", color = Color.White, fontWeight = FontWeight.Bold)
-}
+                    onClick = {
+                        val parsedAge = age.toIntOrNull()
+                        if (parsedAge == null || parsedAge <= 0) {
+                            validationError = "Please enter a valid age greater than 0 before completing creation."
+                            return@Button
+                        }
 
+                        val boss = Boss(
+                            name = name,
+                            race = race,
+                            age = parsedAge,
+                            height = height,
+                            gender = gender,
+                            appearance = appearance,
+                            setting = setting,
+                            floorTheme = floorTheme,
+                            bosspower = bosspower,
+                            skills = listOf(skill1, skill2, skill3).filter { it.isNotEmpty() },
+                            techniques = listOf(technique1, technique2, technique3).filter { it.isNotEmpty() },
+                            spells = listOf(spell1, spell2, spell3).filter { it.isNotEmpty() },
+                            stats = BossStats(
+                                size = size,
+                                physique = physique,
+                                resilience = resilience,
+                                willpower = willpower,
+                                speed = speed,
+                                agility = agility,
+                                reflexes = reflexes,
+                                weaponHandling = weaponHandling,
+                                tactics = tactics,
+                                aim = aim,
+                                charisma = charisma,
+                                deception = deception,
+                                seduction = seduction,
+                                manipulation = manipulation,
+                                trapCraft = trapCraft,
+                                floorKnowledge = floorKnowledge,
+                                minionCommand = minionCommand,
+                                arcana = arcana,
+                                manaSurge = manaSurge
+                            ),
+                            dungeonVoice = dungeonVoice
+                        )
+                        gameState.updateBoss(boss)
+                        gameState.setCreationStep(0)
+                        onCreationComplete(boss)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF6B1124)
+                    )
+                ) {
+                    Text("COMPLETE", color = Color.White, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
@@ -351,30 +372,46 @@ fun Step4Screen(
     arcana: String, onArcanaChange: (String) -> Unit,
     manaSurge: String, onManaSurgeChange: (String) -> Unit
 ) {
-    val sizeOptions = listOf("Slight", "Average", "Tall", "Imposing", "Massive", "Towering")
-    val physiqueOptions = listOf("Frail", "Lean", "Fit", "Athletic", "Muscular", "Hulking", "Monstrous")
-    val resilenceOptions = listOf("Fragile", "Delicate", "Average", "Tough", "Hardened", "Ironclad", "Unbreakable")
-    
+    val sizeOptions = listOf("Petite", "Small", "Average", "Lithe", "Heavyset", "Tall", "Imposing", "Massive")
+    val physiqueOptions = listOf("Slender", "Lean", "Fit", "Curvy", "Athletic", "Toned", "Muscular", "Hulking")
+    val resilienceOptions = listOf("Fragile", "Delicate", "Average", "Sturdy", "Tough", "Hardened", "Ironclad", "Unbreakable")
+    val willpowerOptions = listOf("Timid", "Wavering", "Steady", "Resolute", "Driven", "Unyielding", "Fanatical")
+    val speedOptions = listOf("Sluggish", "Measured", "Average", "Quick", "Swift", "Lightning")
+    val agilityOptions = listOf("Stiff", "Balanced", "Nimble", "Agile", "Acrobatic", "Serpentine", "Ghostlike")
+    val reflexOptions = listOf("Dulled", "Slow", "Aware", "Sharp", "Honed", "Instinctive", "Preternatural")
+    val weaponHandlingOptions = listOf("Untrained", "Novice", "Competent", "Skilled", "Expert", "Masterful")
+    val tacticsOptions = listOf("Reckless", "Opportunistic", "Calculated", "Adaptive", "Strategic", "Tactician")
+    val aimOptions = listOf("Erratic", "Shaky", "Steady", "Precise", "Surgical", "Unerring")
+    val charismaOptions = listOf("Abrasive", "Plain", "Likeable", "Charming", "Magnetic", "Regal")
+    val deceptionOptions = listOf("Transparent", "Awkward", "Convincing", "Slippery", "Masterful", "Mythic")
+    val seductionOptions = listOf("Awkward", "Coy", "Flirtatious", "Enticing", "Hypnotic", "Irresistible")
+    val manipulationOptions = listOf("Naive", "Persuasive", "Cunning", "Calculating", "Dominant", "Puppetmaster")
+    val trapCraftOptions = listOf("Clumsy", "Novice", "Competent", "Expert", "Masterful", "Legendary")
+    val floorKnowledgeOptions = listOf("Newcomer", "Familiar", "Intimate", "Master Cartographer", "One With the Stone")
+    val minionCommandOptions = listOf("Ignored", "Tolerated", "Obeyed", "Respected", "Feared", "Worshipped")
+    val arcanaOptions = listOf("Untrained", "Initiate", "Studied", "Versed", "Arcanist", "Sage", "Archmage")
+    val manaSurgeOptions = listOf("Faint", "Trickle", "Pool", "Reservoir", "Lake", "Ocean", "Wellspring", "Cataclysmic")
+
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         StatDropdown("Size", size, sizeOptions, onSizeChange)
         StatDropdown("Physique", physique, physiqueOptions, onPhysiqueChange)
-        StatDropdown("Resilience", resilience, resilenceOptions, onResilienceChange)
-        StatDropdown("Willpower", willpower, listOf("Broken", "Wavering", "Uncertain", "Steady", "Resolute", "Driven", "Fanatical"), onWillpowerChange)
-        StatDropdown("Speed", speed, listOf("Sluggish", "Slow", "Average", "Quick", "Fast", "Rushing", "Blinding"), onSpeedChange)
-        StatDropdown("Agility", agility, listOf("Clumsy", "Stiff", "Average", "Nimble", "Agile", "Acrobatic", "Ghostlike"), onAgilityChange)
-        StatDropdown("Reflexes", reflexes, listOf("Oblivious", "Slow", "Average", "Sharp", "Honed", "Wired", "Instinctive"), onReflexesChange)
-        StatDropdown("Weapon Handling", weaponHandling, listOf("Untrained", "Novice", "Competent", "Skilled", "Expert", "Masterful"), onWeaponHandlingChange)
-        StatDropdown("Tactics", tactics, listOf("Reckless", "Impulsive", "Chaotic", "Average", "Calculated", "Adaptive", "Strategic", "Tactician"), onTacticsChange)
-        StatDropdown("Aim", aim, listOf("Wild", "Shaky", "Average", "Steady", "Precise", "Surgical", "Unmatched"), onAimChange)
-        StatDropdown("Charisma", charisma, listOf("Repulsive", "Offputting", "Plain", "Likeable", "Charming", "Magnetic"), onCharismaChange)
-        StatDropdown("Deception", deception, listOf("Transparent", "Clumsy", "Average", "Slippery", "Convincing", "Masterful"), onDeceptionChange)
-        StatDropdown("Seduction", seduction, listOf("Awkward", "Bland", "Average", "Flirtatious", "Enticing", "Irresistible"), onSeductionChange)
-        StatDropdown("Manipulation", manipulation, listOf("Naive", "Clumsy", "Average", "Cunning", "Calculating", "Puppetmaster"), onManipulationChange)
-        StatDropdown("Trap Craft", trapCraft, listOf("Helpless", "Novice", "Average", "Competent", "Expert", "Masterful", "Legendary"), onTrapCraftChange)
-        StatDropdown("Floor Knowledge", floorKnowledge, listOf("Lost", "Basic", "Average", "Familiar", "Intimate", "OneWithTheStone"), onFloorKnowledgeChange)
-        StatDropdown("Minion Command", minionCommand, listOf("Ignored", "Tolerated", "Obeyed", "Respected", "Feared", "Worshipped"), onMinionCommandChange)
-        StatDropdown("Arcana", arcana, listOf("Mundane", "Initiate", "Studied", "Versed", "Learned", "Arcanist", "Sage"), onArcanaChange)
-        StatDropdown("Mana Surge", manaSurge, listOf("Dry", "Trickle", "Pool", "Reservoir", "Lake", "Ocean", "Wellspring"), onManaSurgeChange)
+        StatDropdown("Resilience", resilience, resilienceOptions, onResilienceChange)
+        StatDropdown("Willpower", willpower, willpowerOptions, onWillpowerChange)
+        StatDropdown("Speed", speed, speedOptions, onSpeedChange)
+        StatDropdown("Agility", agility, agilityOptions, onAgilityChange)
+        StatDropdown("Reflexes", reflexes, reflexOptions, onReflexesChange)
+        StatDropdown("Weapon Handling", weaponHandling, weaponHandlingOptions, onWeaponHandlingChange)
+        StatDropdown("Tactics", tactics, tacticsOptions, onTacticsChange)
+        StatDropdown("Aim", aim, aimOptions, onAimChange)
+        StatDropdown("Charisma", charisma, charismaOptions, onCharismaChange)
+        StatDropdown("Deception", deception, deceptionOptions, onDeceptionChange)
+        StatDropdown("Seduction", seduction, seductionOptions, onSeductionChange)
+        StatDropdown("Manipulation", manipulation, manipulationOptions, onManipulationChange)
+        StatDropdown("Trap Craft", trapCraft, trapCraftOptions, onTrapCraftChange)
+        StatDropdown("Floor Knowledge", floorKnowledge, floorKnowledgeOptions, onFloorKnowledgeChange)
+        StatDropdown("Minion Command", minionCommand, minionCommandOptions, onMinionCommandChange)
+        StatDropdown("Arcana", arcana, arcanaOptions, onArcanaChange)
+        StatDropdown("Mana Surge", manaSurge, manaSurgeOptions, onManaSurgeChange)
     }
 }
 
@@ -383,7 +420,7 @@ fun Step5Screen(
     dungeonVoice: String, onDungeonVoiceChange: (String) -> Unit
 ) {
     val voiceOptions = listOf("Chronicle", "Advisor", "Witness", "Fondly Tired", "Custom")
-    
+
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("How should the Dungeon speak to you?", color = Color(0xFFD4AF37), fontSize = 14.sp, fontWeight = FontWeight.Bold)
         voiceOptions.forEach { voice ->
@@ -415,6 +452,7 @@ fun Step7Screen() {
     Text("You can customize your floor traps and minions after creation using #traps and #minions commands.", color = Color(0xFFCCCCCC))
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StatDropdown(
     label: String,
@@ -422,39 +460,48 @@ fun StatDropdown(
     options: List<String>,
     onSelectionChange: (String) -> Unit
 ) {
-    Column {
-        Text(label, color = Color(0xFFD4AF37), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-        var expanded by remember { mutableStateOf(false) }
-        
-        Button(
-            onClick = { expanded = !expanded },
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        OutlinedTextField(
+            value = selected.ifEmpty { "Select..." },
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label, color = Color(0xFFD4AF37)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
+                .menuAnchor()
                 .fillMaxWidth()
                 .padding(vertical = 4.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F3460))
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color(0xFFD4AF37),
+                unfocusedBorderColor = Color(0xFF666666),
+                focusedContainerColor = Color(0xFF0F3460),
+                unfocusedContainerColor = Color(0xFF0F3460),
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White,
+                focusedLabelColor = Color(0xFFD4AF37),
+                unfocusedLabelColor = Color(0xFFD4AF37),
+                cursorColor = Color(0xFFD4AF37)
+            )
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            containerColor = Color(0xFF16213E)
         ) {
-            Text(selected.ifEmpty { "Select..." }, color = Color.White)
-        }
-        
-        if (expanded) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp),
-                color = Color(0xFF16213E)
-            ) {
-                LazyColumn {
-                    items(options.size) { index ->
-                        Text(
-                            text = options[index],
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            color = Color.White
-                        )
-                        Divider(color = Color(0xFF333333))
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option, color = Color.White) },
+                    onClick = {
+                        onSelectionChange(option)
+                        expanded = false
                     }
-                }
+                )
             }
         }
     }
