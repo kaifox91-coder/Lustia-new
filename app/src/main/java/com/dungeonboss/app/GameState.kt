@@ -9,6 +9,10 @@ import kotlinx.serialization.encodeToString
 class GameState(private val context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("dungeon_boss_game", Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true }
+
+    private companion object {
+        const val MAX_STORY_ENTRIES = 500
+    }
     
     private var gameData: GameData = loadGame()
 
@@ -104,7 +108,7 @@ class GameState(private val context: Context) {
     }
 
     fun addStoryEntry(entry: String) {
-        val entries = gameData.storyLog.takeLast(11) + entry
+        val entries = (gameData.storyLog + entry).takeLast(MAX_STORY_ENTRIES)
         gameData = gameData.copy(storyLog = entries, lastUpdated = System.currentTimeMillis())
         saveGame()
     }
