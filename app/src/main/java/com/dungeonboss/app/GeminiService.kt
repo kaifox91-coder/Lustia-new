@@ -10,7 +10,7 @@ data class ChatMessage(
     val content: String
 )
 
-class GeminiService(apiKey: String) {
+class GeminiService(apiKey: String = "AQ.Ab8RN6L7Tn_ET_We3nbrD7duaA0Z4wEeBsHJrotkjrhIszBr0Q") {
     private val model = GenerativeModel(
         modelName = "gemini-1.5-flash",
         apiKey = apiKey
