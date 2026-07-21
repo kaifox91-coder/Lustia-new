@@ -19,12 +19,16 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.saveable.rememberSaveable
 
 @Composable
 fun ChatScreen(viewModel: ChatViewModel) {
-    var userInput by remember { mutableStateOf("") }
-    var showSaveMenu by remember { mutableStateOf(false) }
-    var showDebugPanel by remember { mutableStateOf(false) }
+    // rememberSaveable stops rotation from resetting the screen
+    var userInput by rememberSaveable { mutableStateOf("") }
+    var showSaveMenu by rememberSaveable { mutableStateOf(false) }
+    var showDebugPanel by rememberSaveable { mutableStateOf(false) }
+    var showStatsPopup by rememberSaveable { mutableStateOf(false) } // State for closeable stats window
+
 
     val messages = viewModel.uiMessages.value
     val isLoading = viewModel.isLoading.value
