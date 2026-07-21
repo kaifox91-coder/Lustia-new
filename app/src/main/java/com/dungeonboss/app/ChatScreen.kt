@@ -162,36 +162,15 @@ fun ChatScreen(viewModel: ChatViewModel) {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(messages) { message ->
-                    ChatMessageBubble(
-                        message = message,
-                        fontFamily = FontFamily.SansSerif,
-                        bodyColor = colorTextBodyWhite,
-                        systemColor = colorTextBrightNeon,
-                        panelColor = colorMenuBackground,
-                        borderColor = colorBorderActive
-                    )
-                }
-
-                if (isLoading) {
-                    item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(8.dp),
-                            horizontalArrangement = Arrangement.Start
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                color = colorTextBrightNeon,
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "The Dungeon builds textures...",
-                                color = colorTextBodyWhite.copy(alpha = 0.5f),
-                                fontFamily = FontFamily.SansSerif,
-                                fontStyle = FontStyle.Italic,
-                                fontSize = 13.sp
-                            )
-                        }
+                    SelectionContainer {
+                        ChatMessageBubble(
+                            message = message,
+                            fontFamily = FontFamily.SansSerif,
+                            bodyColor = colorTextBodyWhite,
+                            systemColor = colorTextBrightNeon,
+                            panelColor = colorMenuBackground,
+                            borderColor = colorBorderActive
+                        )
                     }
                 }
             }
