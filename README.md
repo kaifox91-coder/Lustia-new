@@ -27,32 +27,23 @@ A local Android chatbot powered by Google Gemini AI, fully playable on your phon
 4. Copy the key
 ```
 
-#### 2. Store API Key in Gradle User Properties (Recommended)
-Create or edit this file on your machine:
+#### 2. Store API Key for Local Development
 
-- macOS/Linux: `~/.gradle/gradle.properties`
-- Windows: `%USERPROFILE%\.gradle\gradle.properties`
-
-Add:
+**Option A — project-local (recommended):**
+Copy `secrets.properties.example` to `secrets.properties` (git-ignored) and fill in your key:
 ```properties
-GEMINI_API_KEY=AIzaSy_YOUR_ACTUAL_KEY_HERE
+geminiApiKey=AIzaSy_YOUR_ACTUAL_KEY_HERE
 ```
 
-Then in `app/build.gradle`, expose it through BuildConfig:
-```gradle
-android {
-    defaultConfig {
-        buildConfigField "String", "GEMINI_API_KEY", "\"${project.findProperty("GEMINI_API_KEY") ?: ""}\""
-    }
-}
+**Option B — machine-wide:**
+Add to `~/.gradle/gradle.properties` (macOS/Linux) or `%USERPROFILE%\.gradle\gradle.properties` (Windows):
+```properties
+geminiApiKey=AIzaSy_YOUR_ACTUAL_KEY_HERE
 ```
 
-Use it in code:
-```kotlin
-val geminiService = GeminiService(BuildConfig.GEMINI_API_KEY)
-```
+The build reads the key via the Gradle property `geminiApiKey` and exposes it as `BuildConfig.GEMINI_KEY`.
 
-> Never commit secrets to source files.
+> Never commit your real key to source files.
 
 #### 3. Build the APK
 ```bash
@@ -115,11 +106,17 @@ app/src/main/AndroidManifest.xml # Internet permissions
 ## 🔧 Configuration
 
 ### API Key Management
-Use user-level Gradle properties + BuildConfig:
 
-1. Put `GEMINI_API_KEY=...` in `~/.gradle/gradle.properties`
-2. Expose with `BuildConfig.GEMINI_API_KEY` in `app/build.gradle`
-3. Inject via `GeminiService(BuildConfig.GEMINI_API_KEY)`
+**Single source of truth:** the Gradle property `geminiApiKey`.
+
+| Context | How to supply the key |
+|---------|----------------------|
+| Local (project) | Copy `secrets.properties.example` → `secrets.properties`, set `geminiApiKey=YOUR_KEY` |
+| Local (machine-wide) | Add `geminiApiKey=YOUR_KEY` to `~/.gradle/gradle.properties` |
+| CI (GitHub Actions) | Add a repository secret named `GEMINI_API_KEY`; the workflow passes it as `-PgeminiApiKey=...` |
+
+The key is baked into the APK as `BuildConfig.GEMINI_KEY` and accessed via `GeminiService(BuildConfig.GEMINI_KEY)`.
+The build **fails immediately** if `geminiApiKey` is missing or empty.
 
 ### Customizing the Dungeon's Voice
 Edit `GeminiService.kt` line 41-62 to change the system prompt and dungeon personality.
@@ -154,7 +151,7 @@ app/build/outputs/apk/release/app-release.apk
 
 ### "API key is invalid"
 - ✅ Verify the key from [AI Studio](https://aistudio.google.com/app/apikey)
-- ✅ Ensure `GEMINI_API_KEY` is set in `~/.gradle/gradle.properties`
+- ✅ Ensure `geminiApiKey` is set in `secrets.properties` or `~/.gradle/gradle.properties`
 - ✅ Sync Gradle / restart app after updating
 
 ### "Internet permission denied"
@@ -262,7 +259,7 @@ Today, there is a knock at the door.
 
 ## 🚢 Deployment Checklist
 
-- [ ] Ensure API key comes from `~/.gradle/gradle.properties`
+- [ ] Ensure `geminiApiKey` is set in `secrets.properties` or `~/.gradle/gradle.properties` (local) or `GEMINI_API_KEY` GitHub secret (CI)
 - [ ] Test on multiple Android devices
 - [ ] Verify internet permission is granted
 - [ ] Test character creation through all 7 steps

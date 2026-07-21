@@ -9,7 +9,7 @@ import kotlinx.coroutines.launch
 
 class ChatViewModel(context: Context) : ViewModel() {
     private val gameState = GameState(context)
-    private val geminiService = GeminiService(BuildConfig.GEMINI_API_KEY)
+    private val geminiService = GeminiService(BuildConfig.GEMINI_KEY)
 
     private val _uiMessages = mutableStateOf<List<UIChatMessage>>(emptyList())
     val uiMessages: State<List<UIChatMessage>> = _uiMessages

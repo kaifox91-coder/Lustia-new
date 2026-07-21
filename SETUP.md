@@ -73,34 +73,45 @@ cd Lustia-new
 
 ---
 
-## STEP 5: Add API Key Securely (Recommended)
+## STEP 5: Add API Key Securely
 
-1. Create or edit your Gradle user properties file:
+The build reads the key from a single Gradle property named `geminiApiKey`.
+
+### Option A — project-local `secrets.properties` (Recommended)
+
+1. Copy the example template to a local file (git-ignored):
+   ```bash
+   cp secrets.properties.example secrets.properties
+   ```
+2. Open `secrets.properties` and replace the placeholder:
+   ```properties
+   geminiApiKey=AIzaSy_YOUR_ACTUAL_KEY_HERE
+   ```
+3. Sync Gradle and rebuild.
+
+### Option B — machine-wide `~/.gradle/gradle.properties`
+
+1. Open (or create) the file:
    - macOS/Linux: `~/.gradle/gradle.properties`
    - Windows: `%USERPROFILE%\\.gradle\\gradle.properties`
-
 2. Add your key:
    ```properties
-   GEMINI_API_KEY=AIzaSy_YOUR_ACTUAL_KEY_HERE
+   geminiApiKey=AIzaSy_YOUR_ACTUAL_KEY_HERE
    ```
+3. Sync Gradle and rebuild.
 
-3. In `app/build.gradle`, expose it in BuildConfig:
-   ```gradle
-   android {
-       defaultConfig {
-           buildConfigField "String", "GEMINI_API_KEY", "\"${project.findProperty("GEMINI_API_KEY") ?: ""}\""
-       }
-   }
-   ```
+The key is exposed in code as `BuildConfig.GEMINI_KEY` — used by `GeminiService(BuildConfig.GEMINI_KEY)`.
 
-4. In app code, initialize Gemini with BuildConfig:
-   ```kotlin
-   val geminiService = GeminiService(BuildConfig.GEMINI_API_KEY)
-   ```
+> Do **not** place API keys directly in Kotlin source files or commit `secrets.properties`.
 
-5. Sync Gradle and rebuild.
+### CI / GitHub Actions
 
-> Do **not** place API keys directly in Kotlin source files.
+Add a repository secret named `GEMINI_API_KEY`:
+- Repository → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
+- Name: `GEMINI_API_KEY`
+- Value: your key from https://aistudio.google.com/app/apikey
+
+The workflow passes it as `-PgeminiApiKey=...` and never writes the key to disk or logs.
 
 ---
 
@@ -207,7 +218,7 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 
 ### "API key not found / Invalid"
 - ✅ Verify key from https://aistudio.google.com/app/apikey
-- ✅ Ensure `GEMINI_API_KEY` exists in `~/.gradle/gradle.properties`
+- ✅ Ensure `geminiApiKey` exists in `secrets.properties` or `~/.gradle/gradle.properties`
 - ✅ Restart Android Studio after editing
 - ✅ Rebuild APK
 
