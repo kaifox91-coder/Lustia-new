@@ -9,7 +9,10 @@ import kotlinx.coroutines.launch
 
 class ChatViewModel(context: Context) : ViewModel() {
     private val gameState = GameState(context)
-    private val geminiService = GeminiService(BuildConfig.GEMINI_KEY)
+    
+    // Clean the build string to remove literal quotation marks
+    private val cleanGeminiKey: String = BuildConfig.GEMINI_KEY.replace("\"", "").trim()
+    private val geminiService = GeminiService(cleanGeminiKey)
 
     private val _uiMessages = mutableStateOf<List<UIChatMessage>>(emptyList())
     val uiMessages: State<List<UIChatMessage>> = _uiMessages
