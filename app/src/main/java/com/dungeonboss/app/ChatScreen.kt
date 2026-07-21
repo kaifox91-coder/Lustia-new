@@ -15,24 +15,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.saveable.rememberSaveable
-//import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.text.selection.SelectionContainer
 
-@Composable
-// --- COPY FROM HERE ---
 @Composable
 fun ChatScreen(viewModel: ChatViewModel) {
     // State wrappers that survive orientation rotations cleanly
     var userInput by rememberSaveable { mutableStateOf("") }
     var showSaveMenu by rememberSaveable { mutableStateOf(false) }
     var showDebugPanel by rememberSaveable { mutableStateOf(false) }
-    var showStatsPopup by rememberSaveable { mutableStateOf(false) } // Controls your new pop-up window
-    var showStatsPopup by rememberSaveable { mutableStateOf(false) } // State for closeable stats window
-
+    var showStatsPopup by rememberSaveable { mutableStateOf(false) }
 
     val messages = viewModel.uiMessages.value
     val isLoading = viewModel.isLoading.value
@@ -50,42 +45,6 @@ fun ChatScreen(viewModel: ChatViewModel) {
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.size - 1)
-
-
-            if (showStatsPopup) {
-   
-                AlertDialog(
-                    onDismissRequest = { showStatsPopup = false },
-        title = { 
-            Text(
-                text = "Character Sheet", 
-                fontSize = 20.sp, 
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace
-            ) 
-        },
-        text = {
-            Column(modifier = Modifier.fillMaxWidth().padding(4.dp)) {
-                Text("Boss Profile: ${viewModel.boss.value.name}", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(modifier = Modifier.height(8.dp))
-                Divider(color = Color.Gray, thickness = 0.5.dp)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("💰 Total Gold: ${viewModel.coins.value}", fontSize = 15.sp)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text("🔥 Infamy Level: ${viewModel.infamy.value}", fontSize = 15.sp)
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { showStatsPopup = false }) {
-                Text("Close", color = MaterialTheme.colorScheme.primary)
-            }
-        },
-        shape = RoundedCornerShape(12.dp)
-  
-                )
-
-            }
-
         }
     }
 
@@ -106,7 +65,10 @@ fun ChatScreen(viewModel: ChatViewModel) {
                     Column(
                         modifier = Modifier
                             .weight(1f)
-                            .clickable { viewModel.refreshSaveList(); showSaveMenu = true }
+                            .clickable { 
+                                viewModel.refreshSaveList()
+                                showSaveMenu = true
+                            }
                     ) {
                         Text(
                             text = boss.name.ifEmpty { "Tap to Select Save Slot" },
@@ -151,6 +113,18 @@ fun ChatScreen(viewModel: ChatViewModel) {
                                 )
                             }
                         }
+                        TextButton(
+                            onClick = { showStatsPopup = true },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                        ) {
+                            Text(
+                                text = "Stats",
+                                color = colorTextBrightNeon,
+                                fontFamily = FontFamily.SansSerif,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }
@@ -182,61 +156,112 @@ fun ChatScreen(viewModel: ChatViewModel) {
                 shape = RoundedCornerShape(4.dp),
                 border = BorderStroke(1.dp, colorBorderActive)
             ) {
-                Row(
-                    modifier = Modifier.padding(8.dp).fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(8.dp)
                 ) {
-                    TextField(
-                        value = userInput,
-                        onValueChange = { userInput = it },
-                        modifier = Modifier.weight(1f).height(50.dp),
-                        placeholder = {
-                            Text(
-                                text = "Speak to the Dungeon...",
-                                color = colorTextBodyWhite.copy(alpha = 0.3f),
-                                fontFamily = FontFamily.SansSerif,
-                                fontSize = 13.sp
-                            )
-                        },
-                        textStyle = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 14.sp),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = colorBackground,
-                            unfocusedContainerColor = colorBackground,
-                            focusedTextColor = colorTextBodyWhite,
-                            unfocusedTextColor = colorTextBodyWhite,
-                            focusedIndicatorColor = colorTextBrightNeon,
-                            unfocusedIndicatorColor = colorBorderActive
-                        ),
-                        shape = RoundedCornerShape(4.dp),
-                        singleLine = true
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Button(
-                        onClick = {
-                            viewModel.sendMessage(userInput)
-                            userInput = ""
-                        },
-                        enabled = !isLoading && userInput.trim().isNotEmpty() && boss.name.isNotEmpty(),
-                        modifier = Modifier.height(50.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colorDeepCrimson,
-                            contentColor = colorTextBodyWhite,
-                            disabledContainerColor = colorBackground
-                        ),
-                        shape = RoundedCornerShape(4.dp),
-                        border = BorderStroke(1.dp, if (userInput.trim().isNotEmpty()) colorTextBrightNeon else colorBorderActive)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(
-                            text = "Send",
-                            fontFamily = FontFamily.SansSerif,
-                            fontWeight = FontWeight.Bold,
-                            color = if (userInput.trim().isNotEmpty()) colorTextBodyWhite else Color.Gray
+                        TextField(
+                            value = userInput,
+                            onValueChange = { userInput = it },
+                            modifier = Modifier.weight(1f).height(50.dp),
+                            placeholder = {
+                                Text(
+                                    text = "Speak to the Dungeon...",
+                                    color = colorTextBodyWhite.copy(alpha = 0.3f),
+                                    fontFamily = FontFamily.SansSerif,
+                                    fontSize = 13.sp
+                                )
+                            },
+                            textStyle = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 14.sp),
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = colorBackground,
+                                unfocusedContainerColor = colorBackground,
+                                focusedTextColor = colorTextBodyWhite,
+                                unfocusedTextColor = colorTextBodyWhite,
+                                focusedIndicatorColor = colorTextBrightNeon,
+                                unfocusedIndicatorColor = colorBorderActive
+                            ),
+                            shape = RoundedCornerShape(4.dp),
+                            singleLine = true
                         )
+
+                        Button(
+                            onClick = {
+                                viewModel.sendMessage(userInput)
+                                userInput = ""
+                            },
+                            enabled = !isLoading && userInput.trim().isNotEmpty() && boss.name.isNotEmpty(),
+                            modifier = Modifier.height(50.dp).wrapContentWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = colorDeepCrimson,
+                                contentColor = colorTextBodyWhite,
+                                disabledContainerColor = colorBackground
+                            ),
+                            shape = RoundedCornerShape(4.dp),
+                            border = BorderStroke(1.dp, if (userInput.trim().isNotEmpty()) colorTextBrightNeon else colorBorderActive)
+                        ) {
+                            Text(
+                                text = "Send",
+                                fontFamily = FontFamily.SansSerif,
+                                fontWeight = FontWeight.Bold,
+                                color = if (userInput.trim().isNotEmpty()) colorTextBodyWhite else Color.Gray
+                            )
+                        }
                     }
                 }
             }
+        }
+
+        // --- CLOSEABLE CHARACTER SHEET POPUP ---
+        if (showStatsPopup) {
+            AlertDialog(
+                onDismissRequest = { showStatsPopup = false },
+                title = {
+                    Text(
+                        text = "Character Sheet",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.SansSerif,
+                        color = colorTextBrightNeon
+                    )
+                },
+                text = {
+                    Column(modifier = Modifier.fillMaxWidth().padding(4.dp)) {
+                        Text(
+                            "Boss Profile: ${viewModel.boss.value.name}",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colorTextBodyWhite
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Divider(color = colorBorderActive, thickness = 0.5.dp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "💰 Total Gold: ${viewModel.coins.value}",
+                            fontSize = 15.sp,
+                            color = colorTextBodyWhite
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "🔥 Infamy Level: ${viewModel.infamy.value}",
+                            fontSize = 15.sp,
+                            color = colorTextBodyWhite
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showStatsPopup = false }) {
+                        Text("Close", color = colorTextBrightNeon, fontFamily = FontFamily.SansSerif)
+                    }
+                },
+                containerColor = colorMenuBackground,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.padding(16.dp)
+            )
         }
 
         // --- PURPLE THEMED MULTI-SAVE LOAD GAME POPUP ---
