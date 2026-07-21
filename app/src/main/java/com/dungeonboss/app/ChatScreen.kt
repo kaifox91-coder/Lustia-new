@@ -23,11 +23,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 //import androidx.compose.foundation.text.selection.SelectionContainer
 
 @Composable
+// --- COPY FROM HERE ---
+@Composable
 fun ChatScreen(viewModel: ChatViewModel) {
-    // rememberSaveable stops rotation from resetting the screen
+    // State wrappers that survive orientation rotations cleanly
     var userInput by rememberSaveable { mutableStateOf("") }
     var showSaveMenu by rememberSaveable { mutableStateOf(false) }
     var showDebugPanel by rememberSaveable { mutableStateOf(false) }
+    var showStatsPopup by rememberSaveable { mutableStateOf(false) } // Controls your new pop-up window
     var showStatsPopup by rememberSaveable { mutableStateOf(false) } // State for closeable stats window
 
 
