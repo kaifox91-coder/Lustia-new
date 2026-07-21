@@ -47,6 +47,42 @@ fun ChatScreen(viewModel: ChatViewModel) {
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.size - 1)
+
+
+            if (showStatsPopup) {
+   
+                AlertDialog(
+                    onDismissRequest = { showStatsPopup = false },
+        title = { 
+            Text(
+                text = "Character Sheet", 
+                fontSize = 20.sp, 
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            ) 
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth().padding(4.dp)) {
+                Text("Boss Profile: ${viewModel.boss.value.name}", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(8.dp))
+                Divider(color = Color.Gray, thickness = 0.5.dp)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("💰 Total Gold: ${viewModel.coins.value}", fontSize = 15.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("🔥 Infamy Level: ${viewModel.infamy.value}", fontSize = 15.sp)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { showStatsPopup = false }) {
+                Text("Close", color = MaterialTheme.colorScheme.primary)
+            }
+        },
+        shape = RoundedCornerShape(12.dp)
+  
+                )
+
+            }
+
         }
     }
 
