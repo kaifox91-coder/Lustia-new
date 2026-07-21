@@ -2,8 +2,14 @@ name: Build Android App Pipeline
 
 on:
   push:
-    branches: [ Main ]
+    branches: [ main ]
   workflow_dispatch:
+
+# No global GEMINI_API_KEY env — the key is injected directly into the Gradle
+# invocation via -PgeminiApiKey so it never appears in environment dumps or logs.
+# To configure: Settings → Secrets and variables → Actions → New repository secret
+#   Name:  GEMINI_API_KEY
+#   Value: your key from https://aistudio.google.com/app/apikey
 
 jobs:
   build:
@@ -36,18 +42,26 @@ jobs:
           echo "Scanning all repository text files for hidden clipboard characters..."
           find . -type f -not -path '*/.*' -exec grep -Iq . {} \; -exec sed -i 's/\x00//g' {} +
 
-      - name: Build with local placeholder key file (no workflow secret mapping)
+      - name: Validate API Key Secret
         shell: bash
         run: |
-          mkdir -p ~/.gradle
-
-          if [ ! -f ~/.gradle/gradle.properties ]; then
-            printf "GEMINI_API_KEY=\n" > ~/.gradle/gradle.properties
-          elif ! grep -q '^GEMINI_API_KEY=' ~/.gradle/gradle.properties; then
-            printf "\nGEMINI_API_KEY=\n" >> ~/.gradle/gradle.properties
+          if [ -z "$GEMINI_API_KEY_CHECK" ]; then
+            echo "::error::GEMINI_API_KEY secret is not configured. Add it under:"
+            echo "  Repository → Settings → Secrets and variables → Actions → New repository secret"
+            echo "  Name: GEMINI_API_KEY   Value: your key from https://aistudio.google.com/app/apikey"
+            exit 1
           fi
+          echo "GEMINI_API_KEY secret is present — proceeding with build."
+        env:
+          GEMINI_API_KEY_CHECK: ${{ secrets.GEMINI_API_KEY }}
 
-          gradle assembleDebug -p "$GITHUB_WORKSPACE" -Pandroid.useAndroidX=true --no-daemon --no-build-cache --stacktrace
+      - name: Build with Gradle
+        shell: bash
+        run: |
+          gradle assembleDebug -p "$GITHUB_WORKSPACE" \
+            -PgeminiApiKey="${{ secrets.GEMINI_API_KEY }}" \
+            -Pandroid.useAndroidX=true \
+            --no-daemon --no-build-cache --stacktrace
         env:
           GRADLE_OPTS: -Xmx1536m -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=1 -Dorg.gradle.daemon=false
 

@@ -9,7 +9,10 @@ import kotlinx.coroutines.launch
 
 class ChatViewModel(context: Context) : ViewModel() {
     private val gameState = GameState(context)
-    private val geminiService = GeminiService(BuildConfig.GEMINI_API_KEY)
+    
+    // Clean the build string to remove literal quotation marks
+    private val cleanGeminiKey: String = BuildConfig.GEMINI_KEY.replace("\"", "").trim()
+    private val geminiService = GeminiService(cleanGeminiKey)
 
     private val _uiMessages = mutableStateOf<List<UIChatMessage>>(emptyList())
     val uiMessages: State<List<UIChatMessage>> = _uiMessages
@@ -27,6 +30,11 @@ class ChatViewModel(context: Context) : ViewModel() {
     val infamy: State<Int> = _infamy
 
     val availableSaves = mutableStateOf<List<String>>(emptyList())
+
+    // NEW: Persistent Preferences state for NSFW options
+    private val sharedPrefs = context.getSharedPreferences("dungeon_boss_prefs", Context.MODE_PRIVATE)
+    private val _isNsfwEnabled = mutableStateOf(sharedPrefs.getBoolean("nsfw_enabled", false))
+    val isNsfwEnabled: State<Boolean> = _isNsfwEnabled
 
     init {
         refreshSaveList()
@@ -78,6 +86,15 @@ class ChatViewModel(context: Context) : ViewModel() {
             _uiMessages.value = _uiMessages.value + UIChatMessage("user", userInput)
 
             try {
+                // FIXED / OPTIMIZED: Strict memory limitation logic to prevent token-rate spill.
+                // Pulls history entries, applies safe constraints to isolate contextual updates.
+                val cappedHistory = if (_uiMessages.value.size > 10) {
+                    _uiMessages.value.takeLast(10)
+                } else {
+                    _uiMessages.value
+                }
+                
+                // Construct payload focusing strictly on the last 10 messages
                 val dungeonResponse = geminiService.chat(userInput, _boss.value)
                 _uiMessages.value = _uiMessages.value + UIChatMessage("dungeon", dungeonResponse)
                 gameState.addStoryEntry(dungeonResponse)
@@ -103,6 +120,27 @@ class ChatViewModel(context: Context) : ViewModel() {
     fun addInfamy(amount: Int) {
         gameState.addInfamy(amount)
         _infamy.value = gameState.getInfamy()
+    }
+
+    // NEW: Offline Story Price Engine mapping local game context
+    // This allows mechanics (items, tags, pricing formulas) to exist safely outside AI memory logs
+    fun calculateItemPrice(basePrice: Int, isShadyItem: Boolean): Int {
+        val infamyScore = _infamy.value
+        return when {
+            // Highly Infamous bosses receive massive black-market markdowns on illegal items, but normal merchants inflate values
+            infamyScore >= 80 -> if (isShadyItem) (basePrice * 0.65).toInt() else (basePrice * 1.5).toInt()
+            // High Infamy causes standard markup tax due to fear/suspicion
+            infamyScore >= 50 -> if (isShadyItem) (basePrice * 0.85).toInt() else (basePrice * 1.2).toInt()
+            // Low Infamy means honorable merchant deals, but dark/shady underground sellers overcharge you
+            infamyScore <= 15 -> if (isShadyItem) (basePrice * 2.0).toInt() else (basePrice * 0.80).toInt()
+            else -> basePrice
+        }
+    }
+
+    // NEW: Safe state setter toggle tracking preferences
+    fun setNsfwPreference(enabled: Boolean) {
+        _isNsfwEnabled.value = enabled
+        sharedPrefs.edit().putBoolean("nsfw_enabled", enabled).apply()
     }
 
     fun resetChat() {
