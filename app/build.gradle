@@ -15,8 +15,30 @@ android {
         versionCode 1
         versionName '1.0'
 
-        def geminiApiKey = project.findProperty("GEMINI_API_KEY") ?: System.getenv("GEMINI_API_KEY") ?: ""
-        buildConfigField "String", "GEMINI_API_KEY", "\"${geminiApiKey}\""
+        // Single-source key resolution:
+        // 1. Gradle project property — pass via -PgeminiApiKey=... (used by CI and local CLI)
+        // 2. Fallback: secrets.properties in the project root (local dev convenience only)
+        def geminiApiKey = project.findProperty('geminiApiKey')?.toString()
+
+        if (!geminiApiKey || geminiApiKey.isEmpty()) {
+            def secretsFile = rootProject.file('secrets.properties')
+            if (secretsFile.exists()) {
+                def props = new Properties()
+                secretsFile.withInputStream { props.load(it) }
+                geminiApiKey = props.getProperty('geminiApiKey')
+            }
+        }
+
+        if (!geminiApiKey || geminiApiKey.isEmpty()) {
+            throw new GradleException(
+                "CRITICAL: geminiApiKey was not found.\n" +
+                "  CI: pass via -PgeminiApiKey=\${{ secrets.GEMINI_API_KEY }}\n" +
+                "  Local: add geminiApiKey=YOUR_KEY to secrets.properties or " +
+                "~/.gradle/gradle.properties"
+            )
+        }
+
+        buildConfigField "String", "GEMINI_KEY", "\"${geminiApiKey}\""
     }
 
     buildTypes {
