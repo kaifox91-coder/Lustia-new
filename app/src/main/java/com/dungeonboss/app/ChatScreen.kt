@@ -269,7 +269,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
             DebugPanelDialog(
                 bossName = boss.name,
                 messageCount = messages.size,
-                apiKeyPresent = BuildConfig.GEMINI_API_KEY.isNotBlank(),
+                apiKeyPresent = BuildConfig.GEMINI_KEY.isNotBlank(),
                 packageName = BuildConfig.APPLICATION_ID,
                 onDismiss = { showDebugPanel = false },
                 colorMenuBackground = colorMenuBackground,
