@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.saveable.rememberSaveable
+//import androidx.compose.foundation.text.selection.SelectionContainer
 
 @Composable
 fun ChatScreen(viewModel: ChatViewModel) {
